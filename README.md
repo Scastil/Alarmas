@@ -43,8 +43,9 @@ sudo python setup.py install
 
 ## Contacto:
 
+Este repositorio es resultado de un fork al alojado en https://github.com/SIATAhidro/Alarmas
 Dudas sobre el codigo, y sugerencias:
 
-- Para dudas escribir a: *hidrosiata@gmail.com*.
-- Reporte de bugs y problemas favor escribirlos en: https://github.com/SIATAhidro/Alarmas/issues
+- Para dudas escribir a: *socastillogi@unal.edu.co*.
+- Reporte de bugs y problemas favor escribirlos en: https://github.com/Scastil/Alarmas/issues
 
