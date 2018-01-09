@@ -1,0 +1,1 @@
+se crea para montar la estructura al git, cuando se cronee el cron_ejecucion.py, este se rescribira automaticamente.
