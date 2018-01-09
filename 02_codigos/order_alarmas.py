@@ -14,6 +14,8 @@ from datetime import timedelta
 import datetime as dt
 import pickle
 import matplotlib.dates as mdates
+import netCDF4
+import textwrap
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -566,6 +568,196 @@ def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,n
     if verbose:
         print 'Aviso: Plot de niveles generado en '+ruta_out_png
 
+def RadarStraConv2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umbral=0.005,noextrapol=False,old=False,
+                        save_class=True,save_escenarios=True,verbose=True,super_verbose=True)
+        ''' #Toma los campos de precipitacion de radar, conv y stratiformes tipo nc y los convierte al formato de la cuenca, esta
+            segunda version obtiene tambien los campos con intervalos maximos y minimos de precipitacion. Modificado para incluir
+            extrapolacion. 'save_class' y 'save_escenarios' solo se activan cuando 'old' is True.
+            #Funcion operacional.
+            #Argumentos:
+            fechaI: string, fecha de inicio del periodo.
+            fechaF: string, fecha final del periodo.
+            cuenca: string, ruta del .nc de la cuenca, debe ser la misma de simulacion.
+            rutaNC: string, ruta con los campos de radar historicos generados.
+            rutaRes: string, ruta donde guardar los binarios de precip. para esa cuenca.
+            Dt: int, delta de t en segundos. Default=300.
+            umbral: float, umbral de lluvia minima. Default=0.005
+            noextrapol: boolean, no incluir archivos de extrapolacion
+            old: bolean, 'True' para cuando el archivo a generar ya existe y se busca actualizarlo y no sobrescribirlo.
+            save_class: boolean, crea otros dos archivos de los campos de radar clasificados _conv y _strat
+            save_escenarios: boolean, crea otros dos archivos de los escenarios _low y _high de la estimacion de lluvia.
+            verbose: boolean, condicional para que devuelva los prints de la ejecucion. Default= True.
+            super_verbose:boolean, imprime para cada posicion las imagenes que encontro.
+        '''
+    
+    #Obtiene las fechas por dias
+    datesDias = pd.date_range(fechaI, fechaF,freq='D')
+    a = pd.Series(np.zeros(len(datesDias)),index=datesDias)
+    a = a.resample('A').sum()
+    Anos = [i.strftime('%Y') for i in a.index.to_pydatetime()]
+
+    datesDias = [d.strftime('%Y%m%d') for d in datesDias.to_pydatetime()]
+
+    ListDays = []
+    ListRutas = []
+    for d in datesDias:
+        try:
+            if noextrapol:
+                L = glob.glob(rutaNC + d + '*120.nc')
+            else:
+                L = glob.glob(rutaNC + d + '*.nc')
+            ListRutas.extend(L)
+            for i in L:
+                if i[-11:].endswith('extrapol.nc'):
+                    ListDays.append(i[-32:-20])
+                else:
+                    ListDays.append(i[-23:-11])
+        except:
+            print 'mierda'
+    #Organiza las listas de dias y de rutas
+    ListDays.sort()
+    ListRutas.sort()
+    datesDias = [dt.datetime.strptime(d[:12],'%Y%m%d%H%M') for d in ListDays]
+    datesDias = pd.to_datetime(datesDias)
+    #Obtiene las fechas por Dt
+    textdt = '%d' % Dt
+    #Agrega hora a la fecha inicial
+    if hora_1 <> None:
+            inicio = fechaI+' '+hora_1
+    else:
+            inicio = fechaI
+    #agrega hora a la fecha final
+    if hora_2 <> None:
+            final = fechaF+' '+hora_2
+    else:
+            final = fechaF
+    datesDt = pd.date_range(inicio,final,freq = textdt+'s')
+    #Obtiene las posiciones de acuerdo al dt para cada fecha
+    PosDates = []
+    pos1 = [0]
+    for d1,d2 in zip(datesDt[:-1],datesDt[1:]):
+            pos2 = np.where((datesDias<d2) & (datesDias>=d1))[0].tolist()
+            if len(pos2) == 0:
+                    pos2 = pos1
+            else:
+                    pos1 = pos2
+            PosDates.append(pos2)
+
+
+    #-------------------------------------------------------------------------------------------------------------------------------
+    #CARGADO DE LA CUENCA SOBRE LA CUAL SE REALIZA EL TRABAJO DE OBTENER CAMPOS
+    #-------------------------------------------------------------------------------------------------------------------------------
+    #Carga la cuenca del AMVA
+    cuAMVA = wmf.SimuBasin(rute = cuenca)
+    cuConv = wmf.SimuBasin(rute = cuenca)
+    cuStra = wmf.SimuBasin(rute = cuenca)
+    cuHigh = wmf.SimuBasin(rute = cuenca)
+    cuLow = wmf.SimuBasin(rute = cuenca)
+
+    #si el binario el viejo, establece las variables para actualizar
+    if old:
+        cuAMVA.rain_radar2basin_from_array(status='old',ruta_out= rutaRes)
+        if save_class:
+            cuAMVA.rain_radar2basin_from_array(status='old',ruta_out= rutaRes + '_conv')
+            cuAMVA.rain_radar2basin_from_array(status='old',ruta_out= rutaRes + '_stra')
+        if save_escenarios:
+            cuHigh.rain_radar2basin_from_array(status='old',ruta_out= rutaRes + '_high')
+            cuLow.rain_radar2basin_from_array(status='old',ruta_out= rutaRes + '_low')
+    #Itera sobre las fechas para actualizar el binario de campos
+    datesDt = datesDt.to_pydatetime()
+    print ListRutas[PosDates[0][0]]
+    for dates,pos in zip(datesDt[1:],PosDates):
+        rvec = np.zeros(cuAMVA.ncells)
+        if save_escenarios:
+            rhigh = np.zeros(cuAMVA.ncells)
+            rlow = np.zeros(cuAMVA.ncells)
+        Conv = np.zeros(cuAMVA.ncells, dtype = int)
+        Stra = np.zeros(cuAMVA.ncells, dtype = int)
+        try:
+            for c,p in enumerate(pos):
+                #Lee la imagen de radar para esa fecha
+                g = netCDF4.Dataset(ListRutas[p])
+                RadProp = [g.ncols, g.nrows, g.xll, g.yll, g.dx, g.dx]                        
+                #Agrega la lluvia en el intervalo 
+                rvec += cuAMVA.Transform_Map2Basin(g.variables['Rain'][:].T/ (12*1000.0), RadProp) 
+                if save_escenarios:
+                    rhigh += cuAMVA.Transform_Map2Basin(g.variables['Rhigh'][:].T / (12*1000.0), RadProp) 
+                    rlow += cuAMVA.Transform_Map2Basin(g.variables['Rlow'][:].T / (12*1000.0), RadProp) 
+                #Agrega la clasificacion para la ultima imagen del intervalo
+                ConvStra = cuAMVA.Transform_Map2Basin(g.variables['Conv_Strat'][:].T, RadProp)
+                Conv = np.copy(ConvStra)
+                Conv[Conv == 1] = 0; Conv[Conv == 2] = 1
+                Stra = np.copy(ConvStra)
+                Stra[Stra == 2] = 0 
+                rvec[(Conv == 0) & (Stra == 0)] = 0
+                if save_escenarios:
+                    rhigh[(Conv == 0) & (Stra == 0)] = 0
+                    rlow[(Conv == 0) & (Stra == 0)] = 0
+                Conv[rvec == 0] = 0
+                Stra[rvec == 0] = 0
+                #Cierra el netCDF
+                g.close()
+        except Exception, e:
+            rvec = np.zeros(cuAMVA.ncells)
+            if save_escenarios:
+                rhigh = np.zeros(cuAMVA.ncells)
+                rlow = np.zeros(cuAMVA.ncells)
+            Conv = np.zeros(cuAMVA.ncells)
+            Stra = np.zeros(cuAMVA.ncells)
+        #rvec[ConvStra==0] = 0
+        #rhigh[ConvStra==0] = 0
+        #rlow[ConvStra==0] = 0
+        #Escribe el binario de lluvia
+        dentro = cuAMVA.rain_radar2basin_from_array(vec = rvec,
+            ruta_out = rutaRes,
+            fecha = dates-dt.timedelta(hours = 5),
+            dt = Dt,
+            umbral = umbral)
+        if save_escenarios:
+            dentro = cuHigh.rain_radar2basin_from_array(vec = rhigh,
+                ruta_out = rutaRes+'_high',
+                fecha = dates-dt.timedelta(hours = 5),
+                dt = Dt,
+                umbral = umbral)
+            dentro = cuLow.rain_radar2basin_from_array(vec = rlow,
+                ruta_out = rutaRes+'_low',
+                fecha = dates-dt.timedelta(hours = 5),
+                dt = Dt,
+                umbral = umbral)
+        if dentro == 0: 
+            hagalo = True
+        else:
+            hagalo = False
+        #mira si guarda o no los clasificados
+        if save_class:
+            #Escribe el binario convectivo
+            aa = cuConv.rain_radar2basin_from_array(vec = Conv,
+                ruta_out = rutaRes+'_conv',
+                fecha = dates-dt.timedelta(hours = 5),
+                dt = Dt,
+                doit = hagalo)
+            #Escribe el binario estratiforme
+            aa = cuStra.rain_radar2basin_from_array(vec = Stra,
+                ruta_out = rutaRes+'_stra',
+                fecha = dates-dt.timedelta(hours = 5),
+                dt = Dt,
+                doit = hagalo)	
+        #Opcion Vervose
+        if verbose:
+            print dates.strftime('%Y%m%d-%H:%M'), pos
+
+    #Cierrra el binario y escribe encabezado
+    cuAMVA.rain_radar2basin_from_array(status = 'close',ruta_out = rutaRes)
+    if save_class:
+        cuConv.rain_radar2basin_from_array(status = 'close',ruta_out = rutaRes+'_conv')
+        cuStra.rain_radar2basin_from_array(status = 'close',ruta_out = rutaRes+'_stra')
+    if save_escenarios:
+        cuHigh.rain_radar2basin_from_array(status = 'close',ruta_out = rutaRes+'_high')
+        cuLow.rain_radar2basin_from_array(status = 'close',ruta_out = rutaRes+'_low')
+    #Imprime en lo que va
+    if verbose:
+            print 'Encabezados de binarios de cuenca cerrados y listos'
+
 ########################################################################
 ########################################################################
 ########################################################################
@@ -579,7 +771,6 @@ def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,n
 ########################################################################
 
 #FUNCIONES FUERA DE alarmas.py O CODIGOS.
-# 'Rain_Rain2Basin.py'
 # 'Model_Ejec.py '
 # 'Model_Update_Store.py '
 # 'Graph_StreamFlow_map.py '
@@ -588,11 +779,6 @@ def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,n
 ########################################################################
 # FUNCIONES PARA OBTENER RUTAS 
 
-def get_ruta(RutesList, key):
-    for i in RutesList:
-        if i.startswith('- **'+key+'**'):
-            return i.split(' ')[-1][:-1] 
-    return 'Aviso: no se ha podido leer el key especificado'
 
 def get_rain_last_hours(ruta, rutaTemp, hours, DeltaT = 300):
 	#calcula los pasos 
