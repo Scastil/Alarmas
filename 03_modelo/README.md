@@ -10,5 +10,5 @@ y el despliegue de resultados.
 
 - log.text (archivo): archivos de texto con el log del cron.
 
--resultados (carpeta): todos los archivos de resultado (msg, json, etc), con la información a desplegar.
+- resultados (carpeta): todos los archivos de resultado (msg, json, etc), con la información a desplegar.
 
