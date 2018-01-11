@@ -1,3 +1,12 @@
+## Rutas iniciales
+
+Estas rutas son basicas para la ejecucion del modelo.
+Para garantizar la lectura de las rutas, estas deben escribirse sin comillas y respetando
+los espacios, deben tener la sgte. estructura: - **nombreruta**: ruta.
+
+- **ruta_campos**: /media/nicolas/Home/nicolas/101_RadarClass/
+- **ruta_cuenca**: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/01_database/NCs/Barbosa_Slides_60m.nc
+
 ## Parametros Modelacion
 
 Se indican parametros propios de la simulación, tales como $dt$ y $dx$:
@@ -5,7 +14,7 @@ Se indican parametros propios de la simulación, tales como $dt$ y $dx$:
 ### Param modelación
 
 - **Dt[seg]**: 300
-- **Dx[mts]**: 12.6
+- **Dx[mts]**: 60.0
 - **Almacenamiento medio**: True
 - **Separar Flujos**: True
 - **Retorno**: 1
@@ -19,14 +28,13 @@ Se indican parametros propios de la simulación, tales como $dt$ y $dx$:
 	calculos dentro del modelo.
 
 ### Param Deslizamientos
+> Parametros para determinar si se hace modelación de deslizamientos o no, además se
+puede modificar el factor de seguridad mediante el cual se determina la vulnerabilidad
+de las celdas.
 
 - **Simular Deslizamientos**: True
 - **Factor de Seguridad FS**: 0.5
 - **Factor Corrector Zg**: 1.0
-
-> Parametros para determinar si se hace modelación de deslizamientos o no, además se 
-puede modificar el factor de seguridad mediante el cual se determina la vulnerabilidad 
-de las celdas.
 
 > Algunas cosas necesarias de la cuenca  (los parametros a continuacion deben tener el mismo numero de elementos, siempre el primer elemento 
 deber ser el del nodo de salida con el que se calibra)
@@ -34,15 +42,21 @@ deber ser el del nodo de salida con el que se calibra)
 - **codeestN**: 140
 - **mediaN**: 229.959960938
 
-### Rutas
+## Rutas de salida - resultados:
 
+Rutas donde se alojan los resultados obtenidos por el modelo.
+
+- **ruta_rain**: /media/nicolas/Home/Jupyter/Soraya/Op_Alarmas/Op_AMVA60m/03_Resultados/01_rain/
+	> Ruta en la que se va a generar el binario de lluvia operacional.
+- **ruta_qsim**: /media/nicolas/Home/Jupyter/Soraya/Op_Alarmas/Op_AMVA60m/03_Resultados/02_caudal
+	> Ruta donde se generan el dataframe de Qsim con el  resultado del modelo.
 - **ruta_almsim**: /media/nicolas/Home/Jupyter/Soraya/Op_Alarmas/Op_AMVA60m/03_Resultados/03_almacenamiento/
 	> Ruta en la cual se van a estar actualizando los almacenamientos del modelo.
 - **ruta_almhist**: /media/nicolas/Home/Jupyter/Soraya/Op_Alarmas/Op_AMVA60m/03_Resultados/03_almacenamiento/01_almacenamiento_hist/
 	> Ruta en la cual se van a estar actualizando los almacenamientos del modelo.
 - **ruta_bkc_alm**: /media/nicolas/Home/Jupyter/Soraya/Op_Alarmas/Op_AMVA60m/01_Cuenca/02_BackSto/
 	> Ruta en donde se encuentran las copias de almacenamiento que pueden remplazar a las operacionales
-- **ruta_rainFile**: /media/nicolas/Home/Jupyter/Soraya/Op_Alarmas/Op_AMVA60m/03_Resultados/01_rain/Lluvia_actual.bin
+- **Rruta_rainFileR**: /media/nicolas/Home/Jupyter/Soraya/Op_Alarmas/Op_AMVA60m/03_Resultados/01_rain/Lluvia_actual.bin
 	> Ruta donde se encuentra alojado el archivo de lluvia binario actual.
 - **ruta_rainHistoryFile**: /media/nicolas/Home/Jupyter/Soraya/Op_Alarmas/Op_AMVA60m/03_Resultados/01_rain/Lluvia_historica.hdr
 	> Archivo plano con historico de lluvia, se usa para evaluar reglas de actualizacion.
@@ -129,8 +143,7 @@ para alguno de los casos presentados en la tabla:
 - **Inicial Escorrentia**: 
 - **Inicial Subsup**: 
 - **Inicial Subterraneo**:
-- **Inicial Corriente**: 
-
+- **Inicial Corriente**:
 ___
 ## Figuras
 
@@ -140,6 +153,8 @@ indican cual de las parametrizaciones es la que se usa para graficar algunas
 de las variables tales como la animacion de caudales y la evolucion de la 
 humedad en la cuenca.
 
+- **ruta_rain_png**: /media/nicolas/Home/Jupyter/Soraya/Op_Alarmas/Result_to_web/Res_OpAMVA60m/
+        > Ruta en la que se va a generar los .png de acumulado de lluvia.
 - **ruta_map_qsim**: /media/nicolas/Home/Jupyter/Soraya/Op_Alarmas/Result_to_web/Res_OpAMVA60m/StreamMaps
 	> ruta donde se guardan los mapas de caudales simulados. 
 - **ruta_map_humedad**: /media/nicolas/Home/Jupyter/Soraya/Op_Alarmas/Result_to_web/Res_OpAMVA60m/HumedadMaps

@@ -26,9 +26,10 @@ warnings.filterwarnings('ignore')
 # ruta_store = None
 # ruta_store_bck = None
 
-#Nota: las funciones operacionales se ejecutan desde otro .py donde ya se leen sus argumentos. No lee configfile.
-# las funciones no operacionales se ejecutan esporádicamente, por tanto leen el configfile para obtener argumentos.
+#Nota: las funciones operacionales se ejecutan desde otro .py donde ya se leen sus argumentos. No lee configfile. No cargan simubasin.
+# las funciones no operacionales se ejecutan esporadicamente, por tanto leen el configfile para obtener argumentos, y cargan simubasin.
 # las funciones base son las que abren directamente el configfile y lidean con rutas.
+
 
 ########################################################################
 ########################################################################
@@ -43,10 +44,10 @@ def get_rutesList(rutas):
         #Argumentos
         rutas: string, path indicado.
     '''
-	f = open(rutas,'r')
-	L = f.readlines()
-	f.close()
-	return L
+    f = open(rutas,'r')
+    L = f.readlines()
+    f.close()
+    return L
 
 def get_ruta(RutesList, key):
     ''' Busca en una lista (RutesList) la linea que empieza con el key indicado.
@@ -55,14 +56,15 @@ def get_ruta(RutesList, key):
         RutesList: Lista que devuelve la funcion en este script 'get_rutesList'
         key: string, key indicado para buscar que linea en la lista empieza con el.
     '''
-    for i in RutesList:
-        if i.startswith('- **'+key+'**'):
-            return i.split(' ')[-1][:-1]
-        else:
-            return 'Aviso: no existe linea con el key especificado'
+    if any(i.startswith('- **'+key+'**') for i in RutesList):
+        for i in RutesList:
+            if i.startswith('- **'+key+'**'):
+                return i.split(' ')[-1][:-1]
+    else:
+        return 'Aviso: no existe linea con el key especificado'
 
 def Graph_AcumRain(fechaI,fechaF,cuenca,rutaRain,rutaFigura,vmin=0,vmax=100,verbose=True):
-	''' Genera grafica de acumulado de radar para un periodo especificado, lo plotea y lo guarda en .png
+    ''' Genera grafica de acumulado de radar para un periodo especificado, lo plotea y lo guarda en .png
         - Si hay lluvia en el periodo definido devuelve 1 si no 0.
         Funcion operacional.
         #Argumentos
@@ -77,130 +79,130 @@ def Graph_AcumRain(fechaI,fechaF,cuenca,rutaRain,rutaFigura,vmin=0,vmax=100,verb
         #Falta poner ventanas mas grandes de pronostico de lluvia ya que el calentamiento con las par y CI actuales
         se toma unos 25 pasos.
     '''
-	#Se lee la informacion
-	rutebin, rutehdr = wmf.__Add_hdr_bin_2route__(rutaRain)
-	cu = wmf.SimuBasin(rute=cuenca)
-	DictRain = wmf.read_rain_struct(rutehdr)
-	R = DictRain[u' Record']
+    #Se lee la informacion
+    rutebin, rutehdr = wmf.__Add_hdr_bin_2route__(rutaRain)
+    cu = cuenca
+    DictRain = wmf.read_rain_struct(rutehdr)
+    R = DictRain[u' Record']
 
-	#Se cuadran las fechas para que casen con las de los archivos de radar.
+    #Se cuadran las fechas para que casen con las de los archivos de radar.
 
-	#Se obtienen las fechas con minutos en 00 o 05.
-	####FechaF######
-	#Obtiene las fechas por dias
-	fecha_f = pd.to_datetime(fechaF)
-	fecha_f = fecha_f - pd.Timedelta(str(fecha_f.second)+' seconds')
-	fecha_f = fecha_f - pd.Timedelta(str(fecha_f.microsecond)+' microsecond')
-	#corrige las fechas
-	cont = 0
-	while fecha_f.minute % 5 <>0 and cont<10:
-		fecha_f = fecha_f - pd.Timedelta('1 minutes')
-		cont+=1
+    #Se obtienen las fechas con minutos en 00 o 05.
+    ####FechaF######
+    #Obtiene las fechas por dias
+    fecha_f = pd.to_datetime(fechaF)
+    fecha_f = fecha_f - pd.Timedelta(str(fecha_f.second)+' seconds')
+    fecha_f = fecha_f - pd.Timedelta(str(fecha_f.microsecond)+' microsecond')
+    #corrige las fechas
+    cont = 0
+    while fecha_f.minute % 5 <>0 and cont<10:
+        fecha_f = fecha_f - pd.Timedelta('1 minutes')
+        cont+=1
 
-	####FechaI######
-	#Obtiene las fechas por dias
-	fecha_i = pd.to_datetime(fechaI)
-	fecha_i = fecha_i - pd.Timedelta(str(fecha_f.second)+' seconds')
-	fecha_i = fecha_i - pd.Timedelta(str(fecha_f.microsecond)+' microsecond')
-	#corrige las fechas
-	cont = 0
-	while fecha_i.minute % 5 <>0 and cont<10:
-		fecha_i = fecha_i - pd.Timedelta('1 minutes')
-		cont+=1
+    ####FechaI######
+    #Obtiene las fechas por dias
+    fecha_i = pd.to_datetime(fechaI)
+    fecha_i = fecha_i - pd.Timedelta(str(fecha_f.second)+' seconds')
+    fecha_i = fecha_i - pd.Timedelta(str(fecha_f.microsecond)+' microsecond')
+    #corrige las fechas
+    cont = 0
+    while fecha_i.minute % 5 <>0 and cont<10:
+        fecha_i = fecha_i - pd.Timedelta('1 minutes')
+        cont+=1
 
-	#Evalua que las fechas solicitadas existan, si no para aqui y no se grafica nada - if solo sirve para ensayos.. operacionalmente no debe hacer nada.
-	try:
-		lol=R[fecha_i:fecha_f]
+    #Evalua que las fechas solicitadas existan, si no para aqui y no se grafica nada - if solo sirve para ensayos.. operacionalmente no debe hacer nada.
+    try:
+        lol=R[fecha_i:fecha_f]
 
-		#Ensaya si las fechas solicitadas cuentan con campo de radar en el binario historico, si no escoge la fecha anterior a esa. Este debe existir tambien, lo ideal es que se mantenga el dt, existan campos cada 5 min.
-		####FechaF######
-		Flag = True
-		cont = 0
-		while Flag:
-			try:
-				lol = R.index.get_loc(fecha_f)
-				Flag = False
-			except:
-				print 'Aviso: no existe campo de lluvia para fecha_f en la serie entregada, se intenta buscar el de 5 min antes'
-				fecha_f = fecha_f - pd.Timedelta('5 minutes')
-			cont+=1
-			if cont>1:
-				Flag = False
-		####FechaI######
-		Flag = True
-		cont = 0
-		while Flag:
-			try:
-				lol = R.index.get_loc(fecha_i)
-				Flag = False
-			except:
-				print 'Aviso: no existe campo de lluvia para fecha_i en la serie entregada, se intenta buscar el de 5 min antes'
-				fecha_i = fecha_i - pd.Timedelta('5 minutes')
-			cont+=1
-			if cont>1:
-				Flag = False
+        #Ensaya si las fechas solicitadas cuentan con campo de radar en el binario historico, si no escoge la fecha anterior a esa. Este debe existir tambien, lo ideal es que se mantenga el dt, existan campos cada 5 min.
+        ####FechaF######
+        Flag = True
+        cont = 0
+        while Flag:
+            try:
+                lol = R.index.get_loc(fecha_f)
+                Flag = False
+            except:
+                print 'Aviso: no existe campo de lluvia para fecha_f en la serie entregada, se intenta buscar el de 5 min antes'
+                fecha_f = fecha_f - pd.Timedelta('5 minutes')
+            cont+=1
+            if cont>1:
+                Flag = False
+        ####FechaI######
+        Flag = True
+        cont = 0
+        while Flag:
+            try:
+                lol = R.index.get_loc(fecha_i)
+                Flag = False
+            except:
+                print 'Aviso: no existe campo de lluvia para fecha_i en la serie entregada, se intenta buscar el de 5 min antes'
+                fecha_i = fecha_i - pd.Timedelta('5 minutes')
+            cont+=1
+            if cont>1:
+                Flag = False
 
-		#Escoge pos de campos con lluvia dentro del periodo solicitado.
-		pos = R[fecha_i:fecha_f].values
-		pos = pos[pos <>1 ]
+        #Escoge pos de campos con lluvia dentro del periodo solicitado.
+        pos = R[fecha_i:fecha_f].values
+        pos = pos[pos <>1 ]
 
-		#~ #imprime el tamano de lo que esta haciendo 
-		#~ if verbose:
-			#~ print fecha_f - fecha_i
+        #~ #imprime el tamano de lo que esta haciendo 
+        #~ if verbose:
+            #~ print fecha_f - fecha_i
 
-		#si hay barridos para graficar
-		if len(pos)>0:
-			#-------
-			#Grafica
-			#-------
-			#Textos para la legenda
-			#~ lab = np.linspace(vmin, vmax, 4)
-			#~ texto = ['Bajo', 'Medio', 'Alto', 'Muy alto']
-			#~ labText = ['%dmm\n%s'%(i,j) for i,j in zip(lab, texto)]
-			#Acumula la lluvia para el periodo
-			Vsum = np.zeros(cu.ncells)
-			for i in pos:
-				v,r = wmf.models.read_int_basin(rutebin,i, cu.ncells)
-				v = v.astype(float); v = v/1000.0
-				Vsum+=v	
-			#Genera la figura 
-			c = cu.Plot_basinClean(Vsum, cmap = pl.get_cmap('viridis',10), 
-				vmin = vmin, vmax = vmax,#~ show_cbar=True,
-				#~ cbar_ticksize = 16,
-				#~ cbar_ticks= lab,
-				#~ cbar_ticklabels = labText,
-				#~ cbar_aspect = 17,
-				ruta = rutaFigura,
-				figsize = (10,12),show=False)
-			c[1].set_title('Mapa Lluvia de Radar Acumulada', fontsize=16)
-			if verbose:
-				print 'Aviso: Se ha producido una grafica nueva con valores diferentes de cero para '+rutaFigura[49:-4]
-				print fecha_f - fecha_i
-			return 1
+        #si hay barridos para graficar
+        if len(pos)>0:
+            #-------
+            #Grafica
+            #-------
+            #Textos para la legenda
+            #~ lab = np.linspace(vmin, vmax, 4)
+            #~ texto = ['Bajo', 'Medio', 'Alto', 'Muy alto']
+            #~ labText = ['%dmm\n%s'%(i,j) for i,j in zip(lab, texto)]
+            #Acumula la lluvia para el periodo
+            Vsum = np.zeros(cu.ncells)
+            for i in pos:
+                v,r = wmf.models.read_int_basin(rutebin,i, cu.ncells)
+                v = v.astype(float); v = v/1000.0
+                Vsum+=v	
+            #Genera la figura 
+            c = cu.Plot_basinClean(Vsum, cmap = pl.get_cmap('viridis',10), 
+                vmin = vmin, vmax = vmax,#~ show_cbar=True,
+                #~ cbar_ticksize = 16,
+                #~ cbar_ticks= lab,
+                #~ cbar_ticklabels = labText,
+                #~ cbar_aspect = 17,
+                ruta = rutaFigura,
+                figsize = (10,12),show=False)
+            c[1].set_title('Mapa Lluvia de Radar Acumulada', fontsize=16)
+            if verbose:
+                print 'Aviso: Se ha producido una grafica nueva con valores diferentes de cero en '+rutaFigura
+                print fecha_f - fecha_i
+            return 1
 
-		#si no hay barridos
-		else:
-			#-------
-			#Grafica
-			#-------
-			Vsum = np.zeros(cu.ncells)
-			c = cu.Plot_basinClean(Vsum, cmap = pl.get_cmap('viridis',10), 
-				vmin = vmin, vmax = vmax,#show_cbar=True,
-				#~ cbar_ticksize = 16,
-				#~ cbar_ticks= lab,
-				#~ cbar_ticklabels = labText,
-				#~ cbar_aspect = 17,
-				ruta = rutaFigura,
-				figsize = (10,12),show=False)
-			#~ c[1].set_title('Mapa Lluvia de Radar Acumulada', fontsize=16)
-			if verbose:
-				print 'Aviso: Se ha producido un campo sin lluvia  para '+rutaFigura[49:-4]
-				print fecha_f - fecha_i
-			return 0
-	except:
-		#si no lo logra que no haga nada.
-		print 'Aviso: no se puede construir una serie porque las fechas solicitada no existen, no se genera png de acumulado '+ str(fecha_f - fecha_i)
-		pass
+        #si no hay barridos
+        else:
+            #-------
+            #Grafica
+            #-------
+            Vsum = np.zeros(cu.ncells)
+            c = cu.Plot_basinClean(Vsum, cmap = pl.get_cmap('viridis',10), 
+                vmin = vmin, vmax = vmax,#show_cbar=True,
+                #~ cbar_ticksize = 16,
+                #~ cbar_ticks= lab,
+                #~ cbar_ticklabels = labText,
+                #~ cbar_aspect = 17,
+                ruta = rutaFigura,
+                figsize = (10,12),show=False)
+            #~ c[1].set_title('Mapa Lluvia de Radar Acumulada', fontsize=16)
+            if verbose:
+                print 'Aviso: Se ha producido un campo sin lluvia en '+rutaFigura
+                print fecha_f - fecha_i
+            return 0
+    except:
+        #si no lo logra que no haga nada.
+        print 'Aviso: no se puede construir una serie porque las fechas solicitada no existen, no se genera png de acumulado de '+ str(fecha_f - fecha_i)
+        pass
 
 def Genera_json(rutaQhist,rutaQsim,ruta_out,verbose=True):
     ''' #Actualiza, o crea si no existe, un .json para desplegar informacion de los caudales simulados en la pagina de SIATA.
@@ -568,27 +570,28 @@ def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,n
     if verbose:
         print 'Aviso: Plot de niveles generado en '+ruta_out_png
 
-def RadarStraConv2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umbral=0.005,noextrapol=False,old=False,
-                        save_class=True,save_escenarios=True,verbose=True,super_verbose=True)
-        ''' #Toma los campos de precipitacion de radar, conv y stratiformes tipo nc y los convierte al formato de la cuenca, esta
-            segunda version obtiene tambien los campos con intervalos maximos y minimos de precipitacion. Modificado para incluir
-            extrapolacion. 'save_class' y 'save_escenarios' solo se activan cuando 'old' is True.
-            #Funcion operacional.
-            #Argumentos:
-            fechaI: string, fecha de inicio del periodo.
-            fechaF: string, fecha final del periodo.
-            cuenca: string, ruta del .nc de la cuenca, debe ser la misma de simulacion.
-            rutaNC: string, ruta con los campos de radar historicos generados.
-            rutaRes: string, ruta donde guardar los binarios de precip. para esa cuenca.
-            Dt: int, delta de t en segundos. Default=300.
-            umbral: float, umbral de lluvia minima. Default=0.005
-            noextrapol: boolean, no incluir archivos de extrapolacion
-            old: bolean, 'True' para cuando el archivo a generar ya existe y se busca actualizarlo y no sobrescribirlo.
-            save_class: boolean, crea otros dos archivos de los campos de radar clasificados _conv y _strat
-            save_escenarios: boolean, crea otros dos archivos de los escenarios _low y _high de la estimacion de lluvia.
-            verbose: boolean, condicional para que devuelva los prints de la ejecucion. Default= True.
-            super_verbose:boolean, imprime para cada posicion las imagenes que encontro.
-        '''
+def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umbral=0.005,noextrapol=False,old=False,
+                        save_class=False,save_escenarios=False,verbose=True,super_verbose=False):
+    ''' #Toma los campos de precipitacion de radar, conv y stratiformes tipo nc y los convierte al formato de la cuenca, esta
+        segunda version obtiene tambien los campos con intervalos maximos y minimos de precipitacion. Modificado para incluir
+        extrapolacion. 'save_class' y 'save_escenarios' solo se activan cuando 'old' is True, para usarlos se debe crear primero
+        los archivos 'rutaRes'+'_stra' - 'rutaRes'+'_conv' y 'rutaRes'+'_low' - 'rutaRes'+'_high'.
+        #Funcion operacional.
+        #Argumentos:
+        fechaI: string, fecha de inicio del periodo.
+        fechaF: string, fecha final del periodo.
+        cuenca: string, ruta del .nc de la cuenca, debe ser la misma de simulacion.
+        rutaNC: string, ruta con los campos de radar historicos generados.
+        rutaRes: string, ruta donde guardar los binarios de precip. para esa cuenca.
+        Dt: int, delta de t en segundos. Default=300.
+        umbral: float, umbral de lluvia minima. Default=0.005
+        noextrapol: boolean, no incluir archivos de extrapolacion
+        old: bolean, 'True' para cuando el archivo a generar ya existe y se busca actualizarlo y no sobrescribirlo.
+        save_class: boolean, crea otros dos archivos de los campos de radar clasificados _conv y _strat
+        save_escenarios: boolean, crea otros dos archivos de los escenarios _low y _high de la estimacion de lluvia.
+        verbose: boolean, condicional para que devuelva los prints de la ejecucion. Default= True.
+        super_verbose:boolean, imprime para cada posicion las imagenes que encontro.
+    '''
     
     #Obtiene las fechas por dias
     datesDias = pd.date_range(fechaI, fechaF,freq='D')
@@ -644,15 +647,16 @@ def RadarStraConv2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300
             PosDates.append(pos2)
 
 
-    #-------------------------------------------------------------------------------------------------------------------------------
+    #---------------------------------------------------------------------------
     #CARGADO DE LA CUENCA SOBRE LA CUAL SE REALIZA EL TRABAJO DE OBTENER CAMPOS
-    #-------------------------------------------------------------------------------------------------------------------------------
+    #---------------------------------------------------------------------------
+    
     #Carga la cuenca del AMVA
-    cuAMVA = wmf.SimuBasin(rute = cuenca)
-    cuConv = wmf.SimuBasin(rute = cuenca)
-    cuStra = wmf.SimuBasin(rute = cuenca)
-    cuHigh = wmf.SimuBasin(rute = cuenca)
-    cuLow = wmf.SimuBasin(rute = cuenca)
+    cuAMVA = cuenca# wmf.SimuBasin(rute = cuenca)
+    cuConv = cuenca# wmf.SimuBasin(rute = cuenca)
+    cuStra = cuenca# wmf.SimuBasin(rute = cuenca)
+    cuHigh = cuenca# wmf.SimuBasin(rute = cuenca)
+    cuLow = cuenca# wmf.SimuBasin(rute = cuenca)
 
     #si el binario el viejo, establece las variables para actualizar
     if old:
@@ -741,9 +745,9 @@ def RadarStraConv2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300
                 ruta_out = rutaRes+'_stra',
                 fecha = dates-dt.timedelta(hours = 5),
                 dt = Dt,
-                doit = hagalo)	
-        #Opcion Vervose
-        if verbose:
+                doit = hagalo)
+        #Opcion Verbose
+        if super_verbose:
             print dates.strftime('%Y%m%d-%H:%M'), pos
 
     #Cierrra el binario y escribe encabezado
@@ -756,7 +760,18 @@ def RadarStraConv2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300
         cuLow.rain_radar2basin_from_array(status = 'close',ruta_out = rutaRes+'_low')
     #Imprime en lo que va
     if verbose:
-            print 'Encabezados de binarios de cuenca cerrados y listos'
+            print 'Encabezados de binarios de cuenca cerrados y listos, campos generados en: '
+            print rutaRes+'\n'
+        
+# def Model_Ejec(rutaRain,....cuenca,rutaConfig,newhist,fechai,fechaf,verbose=True):
+#     ''' #Ejecuta el modelo hidrologico de forma operacional en cada paso del tiempo y la proxima media hora, para esto: lee el
+#         binario de lluvia actual y la extrapolacion, si se programa de tal manera actualiza las CI., corre y genera un archivo con
+#         el dataframe de la simulacon de Q en cada nodo para cada paso de tiempo, corre y genera archivos .bin y hdr de las celdas
+#         deslizadas.
+#         #Funcion operacional.
+#         #Argumentos:
+#         ----!!!!!!
+#     '''
 
 ########################################################################
 ########################################################################
@@ -781,70 +796,70 @@ def RadarStraConv2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300
 
 
 def get_rain_last_hours(ruta, rutaTemp, hours, DeltaT = 300):
-	#calcula los pasos 
-	Min = DeltaT/60.0
-	MinInHours = 60.0 / Min
-	Pasos = int(hours * MinInHours)
-	#Escribe la cola de informacion 
-	comando = 'tail '+ruta+' -n '+str(Pasos)+' > '+rutaTemp
-	os.system(comando)
+    #calcula los pasos 
+    Min = DeltaT/60.0
+    MinInHours = 60.0 / Min
+    Pasos = int(hours * MinInHours)
+    #Escribe la cola de informacion 
+    comando = 'tail '+ruta+' -n '+str(Pasos)+' > '+rutaTemp
+    os.system(comando)
 
 def get_modelConfig_lines(RutesList, key, Calib_Storage = None, PlotType = None):
-	List = []
-	for i in RutesList:
-		if i.startswith('|'+key) or i.startswith('| '+key):
-			List.append(i)
-	if len(List)>0:
-		if Calib_Storage == 'Calib':
-			return get_modelCalib(List)
-		if Calib_Storage == 'Store':
-			return get_modelStore(List)
-		if Calib_Storage == 'Update':
-			return get_modelStoreLastUpdate(List)
-		if Calib_Storage == 'Plot':
-			return get_modelPlot(List, PlotType=PlotType)
-		return List
-	else:
-		return 'Aviso: no se encuentran lineas con el key de inicio especificado'
+    List = []
+    for i in RutesList:
+        if i.startswith('|'+key) or i.startswith('| '+key):
+            List.append(i)
+    if len(List)>0:
+        if Calib_Storage == 'Calib':
+            return get_modelCalib(List)
+        if Calib_Storage == 'Store':
+            return get_modelStore(List)
+        if Calib_Storage == 'Update':
+            return get_modelStoreLastUpdate(List)
+        if Calib_Storage == 'Plot':
+            return get_modelPlot(List, PlotType=PlotType)
+        return List
+    else:
+        return 'Aviso: no se encuentran lineas con el key de inicio especificado'
 
 def get_modelPlot(RutesList, PlotType = 'Qsim_map'):
-	for l in RutesList:
-		key = l.split('|')[1].rstrip().lstrip()
-		if key[3:] == PlotType:
-			EjecsList = [i.rstrip().lstrip() for i in l.split('|')[2].split(',')]
-			return EjecsList
-	return key
+    for l in RutesList:
+        key = l.split('|')[1].rstrip().lstrip()
+        if key[3:] == PlotType:
+            EjecsList = [i.rstrip().lstrip() for i in l.split('|')[2].split(',')]
+            return EjecsList
+    return key
 
 def get_modelCalib(RutesList):
-	DCalib = {}
-	for l in RutesList:
-		c = [float(i) for i in l.split('|')[3:-1]]
-		name = l.split('|')[2]
-		DCalib.update({name.rstrip().lstrip(): c})
-	return DCalib
+    DCalib = {}
+    for l in RutesList:
+        c = [float(i) for i in l.split('|')[3:-1]]
+        name = l.split('|')[2]
+        DCalib.update({name.rstrip().lstrip(): c})
+    return DCalib
 
 def get_modelStore(RutesList):
-	DStore = {}
-	for l in RutesList:
-		l = l.split('|')
-		DStore.update({l[1].rstrip().lstrip():
-			{'Nombre': l[2].rstrip().lstrip(),
-			'Actualizar': l[3].rstrip().lstrip(),
-			'Tiempo': float(l[4].rstrip().lstrip()),
-			'Condition': l[5].rstrip().lstrip(),
-			'Calib': l[6].rstrip().lstrip(),
+    DStore = {}
+    for l in RutesList:
+        l = l.split('|')
+        DStore.update({l[1].rstrip().lstrip():
+            {'Nombre': l[2].rstrip().lstrip(),
+            'Actualizar': l[3].rstrip().lstrip(),
+            'Tiempo': float(l[4].rstrip().lstrip()),
+            'Condition': l[5].rstrip().lstrip(),
+            'Calib': l[6].rstrip().lstrip(),
             'BackSto': l[7].rstrip().lstrip(),
             'Slides': l[8].rstrip().lstrip()}})
-	return DStore
+    return DStore
 
 def get_modelStoreLastUpdate(RutesList):
-	DStoreUpdate = {}
-	for l in RutesList:
-		l = l.split('|')
-		DStoreUpdate.update({l[1].rstrip().lstrip():
-			{'Nombre': l[2].rstrip().lstrip(),
-			'LastUpdate': l[3].rstrip().lstrip()}})
-	return DStoreUpdate
+    DStoreUpdate = {}
+    for l in RutesList:
+        l = l.split('|')
+        DStoreUpdate.update({l[1].rstrip().lstrip():
+            {'Nombre': l[2].rstrip().lstrip(),
+            'LastUpdate': l[3].rstrip().lstrip()}})
+    return DStoreUpdate
 
 ########################################################################
 # FUNCIONES PARA EDITAR EL CONFIGFILE.
@@ -882,78 +897,78 @@ def write_parameters_on_configfile(rutaConfig,key,add):
 # FUNCIONES PARA LIDIAR CON CAMPOS DE LLUVIA
 
 def Rain_NoCero(rutaRain):
-	f = open(rutarain,'r')
-	L = f.readlines()
-	f.close()
-	return float(L[3].split()[-1])
+    f = open(rutarain,'r')
+    L = f.readlines()
+    f.close()
+    return float(L[3].split()[-1])
 
 def Rain_Cumulated(rutaCampo, cu, rutaAcum = None):
-	rutabin, rutahdr = wmf.__Add_hdr_bin_2route__(rutaCampo)
-	#Lee el esquema del campo 
-	D = pd.read_csv(rutahdr,skiprows=5,
-		index_col=2, parse_dates=True, 
-		infer_datetime_format=True, 
-		usecols = (1,2,3))
-	Nrecords = D[u' Record'][-1]
-	#Acumula la precipitacion para esa consulta
-	Vsum = np.zeros(cu.ncells)
-	for i in range(1,18):
-		v,r = wmf.models.read_int_basin(rutabin,i, cu.ncells)
-		v = v.astype(float); v = v/1000.0
-		Vsum+=v
-	#Entrga Fecha Inicial y Fecha final.
-	FechaI = D[u' Record'].index[0]
-	FechaF = D[u' Record'].index[-1]
-	FechaI = FechaI + pd.Timedelta('5 hours')
-	FechaF = FechaF + pd.Timedelta('5 hours')
-	#si hay ruta de guardado guarda
-	if rutaAcum <> None:
-		#Obtiene rutas binaria y hdr
-		rutabin, rutahdr = wmf.__Add_hdr_bin_2route__(rutaAcum)
-		#Escribe el binario 
-		Temp = np.zeros((1, cu.ncells))
-		Temp[0] = Vsum
-		wmf.models.write_float_basin(rutabin, Temp, 1, cu.ncells, 1)
-		#Escribe el encabezado con fecha inicio y fecha fin del binario
-		f = open(rutahdr, 'w')
-		f.write('Fecha y hora de inicio y fin del binario acumulado:\n')
-		f.write('Fecha1: %s\n' % FechaI.to_pydatetime().strftime('%Y%m%d%H%M'))
-		f.write('Fecha2: %s\n' % FechaF.to_pydatetime().strftime('%Y%m%d%H%M'))
-		f.write('Lluvia Media: %.4f \n' % Vsum.mean())
-		f.close()
-	return Vsum, FechaI, FechaF
-	
+    rutabin, rutahdr = wmf.__Add_hdr_bin_2route__(rutaCampo)
+    #Lee el esquema del campo 
+    D = pd.read_csv(rutahdr,skiprows=5,
+        index_col=2, parse_dates=True, 
+        infer_datetime_format=True, 
+        usecols = (1,2,3))
+    Nrecords = D[u' Record'][-1]
+    #Acumula la precipitacion para esa consulta
+    Vsum = np.zeros(cu.ncells)
+    for i in range(1,18):
+        v,r = wmf.models.read_int_basin(rutabin,i, cu.ncells)
+        v = v.astype(float); v = v/1000.0
+        Vsum+=v
+    #Entrga Fecha Inicial y Fecha final.
+    FechaI = D[u' Record'].index[0]
+    FechaF = D[u' Record'].index[-1]
+    FechaI = FechaI + pd.Timedelta('5 hours')
+    FechaF = FechaF + pd.Timedelta('5 hours')
+    #si hay ruta de guardado guarda
+    if rutaAcum <> None:
+        #Obtiene rutas binaria y hdr
+        rutabin, rutahdr = wmf.__Add_hdr_bin_2route__(rutaAcum)
+        #Escribe el binario 
+        Temp = np.zeros((1, cu.ncells))
+        Temp[0] = Vsum
+        wmf.models.write_float_basin(rutabin, Temp, 1, cu.ncells, 1)
+        #Escribe el encabezado con fecha inicio y fecha fin del binario
+        f = open(rutahdr, 'w')
+        f.write('Fecha y hora de inicio y fin del binario acumulado:\n')
+        f.write('Fecha1: %s\n' % FechaI.to_pydatetime().strftime('%Y%m%d%H%M'))
+        f.write('Fecha2: %s\n' % FechaF.to_pydatetime().strftime('%Y%m%d%H%M'))
+        f.write('Lluvia Media: %.4f \n' % Vsum.mean())
+        f.close()
+    return Vsum, FechaI, FechaF
+
 def Rain_Cumulated_Dates(rutaAcum, rutaNC):
-	#Obtiene las fechas
-	f = open(rutaAcum, 'r')
-	L = f.readlines()
-	f.close()
-	f1 = L[1].split()[1]
-	f2 = L[2].split()[1]
-	Df = {'Fecha1': L[1].split()[1], 'Fecha2': L[2].split()[1]}
-	Df1 = {'Fecha1': {'atras': pd.to_datetime(f1)-pd.Timedelta('30 minutes'),
-		'adelante':pd.to_datetime(f1)+pd.Timedelta('30 minutes')},
-		'Fecha2': {'atras': pd.to_datetime(f2)-pd.Timedelta('30 minutes'),
-		'adelante':pd.to_datetime(f2)+pd.Timedelta('30 minutes')}}
-	Fechas = []
-	for k in ['Fecha1','Fecha2']:
-		#Obtuiene fechas atras y adelante
-		f11 = Df1[k]['atras'].to_pydatetime().strftime('%Y%m%d')
-		f12 = Df1[k]['adelante'].to_pydatetime().strftime('%Y%m%d')
-		#Lista lo que hay alrededor
-		List = glob.glob(rutaNC+f11+'*.nc')
-		List.extend(glob.glob(rutaNC+f12+'*.nc'))
-		List.sort()
-		List = np.array([pd.to_datetime(i[43:55]) for i in List])
-		#Diferenciass de fecha
-		Diff = np.abs(List - pd.to_datetime(Df[k]))
-		for i in range(4):
-			try:
-				Fechas.append(List[Diff.argmin()+i])
-			except:
-				Fechas.append(pd.to_datetime('200001010000'))
-	#Fechas[1] = List[Diff.argmin()+1]
-	return Fechas
+    #Obtiene las fechas
+    f = open(rutaAcum, 'r')
+    L = f.readlines()
+    f.close()
+    f1 = L[1].split()[1]
+    f2 = L[2].split()[1]
+    Df = {'Fecha1': L[1].split()[1], 'Fecha2': L[2].split()[1]}
+    Df1 = {'Fecha1': {'atras': pd.to_datetime(f1)-pd.Timedelta('30 minutes'),
+        'adelante':pd.to_datetime(f1)+pd.Timedelta('30 minutes')},
+        'Fecha2': {'atras': pd.to_datetime(f2)-pd.Timedelta('30 minutes'),
+        'adelante':pd.to_datetime(f2)+pd.Timedelta('30 minutes')}}
+    Fechas = []
+    for k in ['Fecha1','Fecha2']:
+        #Obtuiene fechas atras y adelante
+        f11 = Df1[k]['atras'].to_pydatetime().strftime('%Y%m%d')
+        f12 = Df1[k]['adelante'].to_pydatetime().strftime('%Y%m%d')
+        #Lista lo que hay alrededor
+        List = glob.glob(rutaNC+f11+'*.nc')
+        List.extend(glob.glob(rutaNC+f12+'*.nc'))
+        List.sort()
+        List = np.array([pd.to_datetime(i[43:55]) for i in List])
+        #Diferenciass de fecha
+        Diff = np.abs(List - pd.to_datetime(Df[k]))
+        for i in range(4):
+            try:
+                Fechas.append(List[Diff.argmin()+i])
+            except:
+                Fechas.append(pd.to_datetime('200001010000'))
+    #Fechas[1] = List[Diff.argmin()+1]
+    return Fechas
 
 
 
@@ -961,11 +976,11 @@ def Rain_Cumulated_Dates(rutaAcum, rutaNC):
 # FUNCIONES PARA SET DEL MODELO 
 
 def model_get_constStorage(RutesList, ncells):
-	Storage = np.zeros((5, ncells))
-	for i,c in enumerate(['Inicial Capilar','Inicial Escorrentia','Inicial Subsup','Inicial Subterraneo','Inicial Corriente']):
-		Cs = float(get_ruta(RutesList, c))
-		Storage[i] = Cs
-	return Storage.astype(float)
+    Storage = np.zeros((5, ncells))
+    for i,c in enumerate(['Inicial Capilar','Inicial Escorrentia','Inicial Subsup','Inicial Subterraneo','Inicial Corriente']):
+        Cs = float(get_ruta(RutesList, c))
+        Storage[i] = Cs
+    return Storage.astype(float)
 
 def model_write_rutesHists(rutaConfig,Qhist=True,Shist=True):
     '''Genera archivos vacios para cada parametrizacion cuando no existe historia o si esta quiere renovarse. 
@@ -1084,19 +1099,19 @@ def model_write_Stosim(ruta_Ssim,ruta_Shist):
     print 'Aviso: Se ha actualizado el archivo de Ssim_historicos de: '+ruta_Shist
 
 def model_update_norain():
-	print 'no rain'
+    print 'no rain'
 
 def model_update_norain_next():
-	print 'no next'
+    print 'no next'
 
 def model_update_norain_last(RainRute, Hours):
-	# Lee el archivo de lluvia 
-	
-	print 'no last'
+    # Lee el archivo de lluvia 
+
+    print 'no last'
 
 def model_def_rutes(ruteStore, ruteStoreHist):
-	ruta_store = ruteStore
-	ruta_store_bck = ruteStoreHist
+    ruta_store = ruteStore
+    ruta_store_bck = ruteStoreHist
 
 ########################################################################
 #FUNCIONES PARA GRAFICAR Y GENERAR RESULTADOS
