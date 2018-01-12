@@ -12,3 +12,4 @@ y el despliegue de resultados.
 
 - resultados (carpeta): todos los archivos de resultado (msg, json, etc), con la información a desplegar.
 
+- backsto (carpeta): los binario de almacenamiento de cada tanque para realizar updates de acuerdo a los dispuesto en el configfile.

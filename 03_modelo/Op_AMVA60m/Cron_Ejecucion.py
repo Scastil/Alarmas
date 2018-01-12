@@ -21,7 +21,7 @@ print '\n'
 print '###################################### Fecha de Ejecucion: '+dateText+' #############################\n'
 
 #Lee el archivo de configuracion
-ruta_configuracion_1 = '/media/nicolas/Home/Jupyter/Soraya/git/Alarmas/03_modelo/Op_AMVA60m/01_settings/EjemploCalib_Calib.md'
+ruta_configuracion_1 = '/media/nicolas/Home/Jupyter/Soraya/git/Alarmas/03_modelo/Op_AMVA60m/configfile.md'
 RutasList = al.get_rutesList(ruta_configuracion_1)
 
 # Lee rutas de objetos de entrada

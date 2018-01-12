@@ -762,13 +762,154 @@ def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umb
     if verbose:
             print 'Encabezados de binarios de cuenca cerrados y listos, campos generados en: '
             print rutaRes+'\n'
-        
+
+def model_write_rutesHists(rutaConfig,Qhist=True,Shist=True):
+    ''' #Genera archivos vacios para cada parametrizacion cuando no existe historia o si esta quiere renovarse. 
+        Si se quiere dejar de crear rutas para alguno de los dos, se debe indicar False. e.g. Shist=False.
+        Genera un dataframe con la primera fila de un qsim, ssim.hdr cualquiera, resultado de simulacion de la cuenca de
+        interes; la ruta de este archivo debe estar indicado en el configfile.
+        #Funcion no operacinal.
+        #Argumentos:
+        -rutaConfig: string, ruta del configfile.
+        -Qhist: boolean, crear un Qhist. Default= True.
+        -Shist: boolean, crear un Shist. Default= True.
+    '''
+
+    ListConfig = get_rutesList(rutaConfig)
+
+    #Actualiza Qhist
+    if Qhist:
+        #se lee la ruta donde se va a escribir
+        ruta_qhist = get_ruta(ListConfig,'ruta_qsim_hist')
+        #se lee el archivo que se va a copiar
+        ruta_qsim = get_ruta(ListConfig,'ruta_qsim')
+        rutas_qsim=glob.glob(ruta_qsim+'*.json')
+        rutaqsim=rutas_qsim[0]
+        #se leen los archivos de todas las par para crear Qhist para cada una.
+        listrutas_qsim=np.sort(rutas_qsim)
+
+        for i in listrutas_qsim:
+            #Se lee el archivo Qsim de donde tomar la primera fila.
+            qsim=pd.read_json(rutaqsim)
+            Qh=qsim.iloc[[0]]
+            nameQhistfile=i.split('/')[-1].split('.')[0]+'hist.'+i.split('/')[-1].split('.')[-1]
+            #Pregunta si ya existe y si se quiere sobreescribir
+            try:
+                Lol = os.listdir(ruta_qhist)
+                pos = Lol.index(nameQhistfile)
+                flag = raw_input('Aviso: El archivo Qhist: '+nameQhistfile+' ya existe, desea sobre-escribirlo, perdera la historia de este!! (S o N): ')
+                if flag == 'S':
+                    flag = True
+                else:
+                    flag = False
+            except:
+                flag = True
+            #Guardado
+            if flag:
+                Qh.to_json(ruta_qhist+nameQhistfile)
+                print 'Aviso: Se crean los Qhist, el archivo Qsim usado para crear las rutas es: '+rutaqsim
+            else:
+                print 'Aviso: No se crean los Qhist'
+    else: 
+        print ' Aviso: No se crean archivos Qhist.'
+
+    #Actualiza Shist
+    if Shist:
+        ruta_shist = get_ruta(ListConfig,'ruta_almhist')
+        ruta_ssim = get_ruta(ListConfig,'ruta_almsim')
+        rutas_ssim=glob.glob(ruta_ssim+'*.StOhdr')
+        rutassim=rutas_ssim[0]
+        listrutas_ssim=np.sort(rutas_ssim)
+
+        for j in listrutas_ssim:
+            #Se lee el archivo Qsim de donde tomar la primera fila.
+            ssim=pd.read_csv(j, header = 4, index_col = 5, parse_dates = True, usecols=(1,2,3,4,5,6))
+            Sh=ssim.iloc[[0]]
+            nameShistfile=j.split('/')[-1].split('.')[0]+'hist.'+i.split('/')[-1].split('.')[-1]
+            #Pregunta si ya existe y si se quiere sobreescribir
+            try:
+                Lold = os.listdir(ruta_shist)
+                pos = Lold.index(nameShistfile)
+                flag = raw_input('Aviso: El archivo Shist: '+nameShistfile+' ya existe, desea sobre-escribirlo, perdera la historia de este!! (S o N): ')
+                if flag == 'S':
+                    flag = True
+                else:
+                    flag = False
+            except:
+                flag = True
+            #Guardado
+            if flag:
+                Sh.to_json(ruta_shist+nameShistfile)
+                print 'Aviso: Se crean los Shist , el archivo Ssim usado para crear las rutas es: '+rutassim
+            else:
+                print 'Aviso: No se crean los Shist'
+    else: 
+        print ' Aviso: No se crean archivos S.'        
+
+def model_write_qhist(rutaQsim,rutaQhist):
+    ''' #Actualiza el archivo Qsimhist con el dataframe de la ultima ejecucion de la parametrizacion definida en las rutas de
+        entrada. Abre el archivo Qhist y Qsim y hace append del ultimo dato, usa df.reindex(...,freq='5min') para que la
+        historia quede organizada cronologicamente, por eso solo funciona si se ejecuta con una frecuencia con minuto = 5.
+        La actualizacion de qhist siempre va un paso atras que la de Shist porque el archivo Qsim que genera la ejecucion
+        empieza con un paso atras del que corre y el archivo Ssmim no, la actualizacion toma esa primera pos.
+        #Funcion operacional.
+        #Argumentos:
+        -rutaQsim= string, ruta del Qsim
+        -rutaQhist= string, ruta del Qhis
+    '''
+    ##Se actualizan los historicos de Qsim de la parametrizacion asociada.
+    #Lee el almacenamiento actual
+    Qactual = pd.read_json(rutaQsim)
+    #Lee el historico
+    Qhist = pd.read_json(rutaQhist)
+    #Actualiza Qhist con Qactual.
+    try:
+        Qhist=Qhist.append(Qactual.iloc[[0]])#.sort_index(axis=1))
+    except:
+        print 'Aviso: no se esta actualizando Qhist en: '+rutaQhist
+    # #borra index repetidos, si los hay - la idea es que no haya pero si los hay no funciona el df.reindex
+    Qhist=Qhist.drop_duplicates()
+    #Crea el index que debe tener la serie con todos los datos
+    rngindex=pd.date_range(Qhist.index[0],Qhist.index[-1],freq='5min')
+    #Si hay faltantes los llena, si no deja igual el df. Esto solo funciona cuando dejamos el cron operacional y el 'freq' es exactamente 5 min.
+    Qhist=Qhist.reindex(rngindex)
+    #Guarda el archivo historico 
+    Qhist.to_json(rutaQhist)
+    # Aviso
+    print 'Aviso: Se ha actualizado el archivo de Qsim_historicos de: '+rutaQhist
+
+def model_write_Stohist(ruta_Ssim,ruta_Shist):
+    ''' #Actualiza el Ssimhist con el estado promedio de C.I. de cada tanque, copiandolo desde el .StOhdr a un json antes
+        creado.Abre el archivo Shist y Ssim y hace append del ultimo dato, usa df.reindex(...,freq='5min') para que la
+        historia quede organizada cronologicamente, por eso solo funciona si se ejecuta con una frecuencia con minuto = 5.
+        #Funcion operacional.
+        -ruta_Ssim: string, ruta .hdr del archivo de condiciones antecedentes .StObin resultado de la simulacion.
+        -ruta_Shist: string, ruta .json del archivo Shist.
+    '''
+    ##Se actualizan los historicos de humedad de la parametrizacion asociada.
+    #Lee el almacenamiento actual
+    Sactual = pd.read_csv(ruta_Ssim[:-7]+'.StOhdr', header = 4, index_col = 5, parse_dates = True, usecols=(1,2,3,4,5,6))
+    #Lee el historico
+    Shist = pd.read_json(ruta_Shist)
+    #Actualiza
+    Shist=Shist.append(Sactual.iloc[[0]])
+    #borra index repetidos, si los hay - la idea es que no haya pero si los hay no funciona el df.reindex
+    Shist=Shist.drop_duplicates()
+    # Crea el index que debe tener la serie con todos los datos
+    rngindex=pd.date_range(Shist.index[0],Shist.index[-1],freq='5min')
+    #Si hay faltantes los llena, si no deja igual el df. Esto solo funciona cuando dejamos el cron operacional y el 'freq' es exactamente 5 min.
+    Shist=Shist.reindex(rngindex)
+
+    #guarda el archivo
+    Shist.to_json(ruta_Shist)
+    print 'Aviso: Se ha actualizado el archivo de Ssim_historicos de: '+ruta_Shist    
+            
 # def Model_Ejec(rutaRain,....cuenca,rutaConfig,newhist,fechai,fechaf,verbose=True):
 #     ''' #Ejecuta el modelo hidrologico de forma operacional en cada paso del tiempo y la proxima media hora, para esto: lee el
 #         binario de lluvia actual y la extrapolacion, si se programa de tal manera actualiza las CI., corre y genera un archivo con
 #         el dataframe de la simulacon de Q en cada nodo para cada paso de tiempo, corre y genera archivos .bin y hdr de las celdas
 #         deslizadas.
-#         #Funcion operacional.
+#         #Funcion operacional, pero por facilidad abre el configfile.
 #         #Argumentos:
 #         ----!!!!!!
 #     '''
@@ -981,122 +1122,6 @@ def model_get_constStorage(RutesList, ncells):
         Cs = float(get_ruta(RutesList, c))
         Storage[i] = Cs
     return Storage.astype(float)
-
-def model_write_rutesHists(rutaConfig,Qhist=True,Shist=True):
-    '''Genera archivos vacios para cada parametrizacion cuando no existe historia o si esta quiere renovarse. 
-    Si se quiere dejar de crear rutas para alguno de los dos, se debe indicar False. e.g. Shist=False.
-    Genera un dataframe con la primera fila de un qsim, ssim cualquiera, resultado de simuacion de la cuenca de interes'''
-    ListConfig = get_rutesList(rutaConfig)
-    
-    #Actualiza Qhist
-    if Qhist:
-        ruta_qhist = get_ruta(ListConfig,'ruta_qsim_hist')
-        ruta_qsim = get_ruta(ListConfig,'ruta_qsim')
-        rutas_qsim=glob.glob(ruta_qsim+'_caudal/*.msg')
-        rutaqsim=rutas_qsim[0]
-        listrutas_qsim=np.sort(rutas_qsim)
-        
-        print 'Aviso: el archivo Qsim usado para crear las rutas es: '+rutaqsim
-        
-        for i in listrutas_qsim:
-            #Se lee el archivo Qsim de donde tomar la primera fila.
-            qsim=pd.read_msgpack(rutaqsim)
-            Qh=qsim.iloc[[0]]
-            #Pregunta si esta
-            try:
-                Lold = os.listdir(i)
-                pos = Lold.index(i)
-                flag = raw_input('Aviso: El archivo Qhistorico : '+i+' ya existe, desea sobre-escribirlo, perdera la historia de este!! (S o N): ')
-                if flag == 'S':
-                    flag = True
-                else:
-                    flag = False
-            except:
-                flag = True
-                print 'Aviso: Se crean los Qhist'
-            #Guardado
-            if flag:
-                Qh.to_msgpack(ruta_qhist+i.split('/')[-1][:-4]+'_hist.msg')
-            else:
-                print 'Aviso: No se crean los Shist'
-    else: 
-        print ' Aviso: No se crean archivos Q.'
-    #Actualiza Shist
-    if Shist:
-        ruta_shist = get_ruta(ListConfig,'ruta_almhist')
-        ruta_ssim = get_ruta(ListConfig,'ruta_almsim')
-        rutas_ssim=glob.glob(ruta_ssim+'*.StOhdr')
-        rutassim=rutas_ssim[0]
-        listrutas_ssim=np.sort(rutas_ssim)
-
-        print 'Aviso: el archivo Ssim usado para crear las rutas es: '+rutassim
-
-        for j in listrutas_ssim:
-            #Se lee el archivo Qsim de donde tomar la primera fila.
-            ssim=pd.read_csv(j, header = 4, index_col = 5, parse_dates = True, usecols=(1,2,3,4,5,6))
-            Sh=ssim.iloc[[0]]
-            #Pregunta si esta
-            try:
-                Lold = os.listdir(j)
-                pos = Lold.index(j)
-                flag = raw_input('Aviso: El archivo Shistorico : '+j+' ya existe, desea sobre-escribirlo, perdera la historia de este!! (S o N): ')
-                if flag == 'S':
-                    flag = True
-                else:
-                    flag = False
-            except:
-                flag = True
-                print 'Aviso: Se crean los Shist'
-            #Guardado
-            if flag:
-                Sh.to_msgpack(ruta_shist+j.split('/')[-1][:-7]+'_hist.msg')
-            else:
-                print 'Aviso: No se crean los Shist'
-    else: 
-        print ' Aviso: No se crean archivos S.'    
-    
-def model_write_qsim(rutaQsim,rutaQhist, pcont):
-    ###Se actualizan los historicos de Qsim de la parametrizacion asociada.
-    #Lee el almacenamiento actual
-    Qactual = pd.read_msgpack(rutaQsim)
-    #Lee el historico
-    Qhist = pd.read_msgpack(rutaQhist)
-    #Actualiza Qhist con Qactual.
-    try:
-        Qhist=Qhist.append(Qactual.iloc[[0]])#.sort_index(axis=1))
-    except:
-        print 'Aviso: no se esta actualizando Qhist en: '+rutaQhist
-    #Crea el index que debe tener la serie con todos los datos
-    rngindex=pd.date_range(Qhist.index[0],Qhist.index[-1],freq='5min')
-    #Si hay faltantes los llena, si no deja igual la funcion.
-    Qhist=Qhist.reindex(rngindex)
-    # #borra index repetidos, si los hay
-    # Qhist=Qhist.drop_duplicates()
-    # #Guarda el archivo historico 
-    Qhist.to_msgpack(rutaQhist)
-    #Aviso
-    print 'Aviso: Se ha actualizado el archivo de Qsim_historicos de: '+rutaQhist
-
-def model_write_Stosim(ruta_Ssim,ruta_Shist):
-    ''''Actualiza el estado promedio de C.I. de cada tanque, copiandolo desde el .StOhdr a un msg antes creado.
-        -ruta_Ssim: ruta .hdr del archivo de condiciones antecedentes .StObin resultado de la simulacion.
-        -ruta_Shist: ruta .msg del archivo Shist.'''
-    ###Se actualizan los historicos de humedad de la parametrizacion asociada.
-    #Lee el almacenamiento actual
-    Sactual = pd.read_csv(ruta_Ssim[:-7]+'.StOhdr', header = 4, index_col = 5, parse_dates = True, usecols=(1,2,3,4,5,6))
-    #Lee el historico
-    Shist = pd.read_msgpack(ruta_Shist)
-    #Actualiza
-    Shist=Shist.append(Sactual.iloc[[0]])
-    #Crea el index que debe tener la serie con todos los datos
-    rngindex=pd.date_range(Shist.index[0],Shist.index[-1],freq='5min')
-    #Si hay faltantes los llena, si no deja igual la serie
-    Shist=Shist.reindex(rngindex)
-    # #borra index repetidos, si los hay
-    # Shist=Shist.drop_duplicates()
-    #guarda el archivo
-    Shist.to_msgpack(ruta_Shist)
-    print 'Aviso: Se ha actualizado el archivo de Ssim_historicos de: '+ruta_Shist
 
 def model_update_norain():
     print 'no rain'
