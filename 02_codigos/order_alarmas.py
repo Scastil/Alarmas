@@ -10,12 +10,14 @@ import MySQLdb
 import csv
 import matplotlib
 import matplotlib.font_manager
+import datetime as dt
 from datetime import timedelta
 import datetime as dt
 import pickle
 import matplotlib.dates as mdates
 import netCDF4
 import textwrap
+from multiprocessing import Pool
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -762,7 +764,7 @@ def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umb
     if verbose:
             print 'Encabezados de binarios de cuenca cerrados y listos, campos generados en: '
             print rutaRes+'\n'
-
+    
 def model_write_rutesHists(rutaConfig,Qhist=True,Shist=True):
     ''' #Genera archivos vacios para cada parametrizacion cuando no existe historia o si esta quiere renovarse. 
         Si se quiere dejar de crear rutas para alguno de los dos, se debe indicar False. e.g. Shist=False.
@@ -903,115 +905,197 @@ def model_write_Stohist(ruta_Ssim,ruta_Shist):
     #guarda el archivo
     Shist.to_json(ruta_Shist)
     print 'Aviso: Se ha actualizado el archivo de Ssim_historicos de: '+ruta_Shist    
-            
-# def Model_Ejec(rutaRain,....cuenca,rutaConfig,newhist,fechai,fechaf,verbose=True):
-#     ''' #Ejecuta el modelo hidrologico de forma operacional en cada paso del tiempo y la proxima media hora, para esto: lee el
-#         binario de lluvia actual y la extrapolacion, si se programa de tal manera actualiza las CI., corre y genera un archivo con
-#         el dataframe de la simulacon de Q en cada nodo para cada paso de tiempo, corre y genera archivos .bin y hdr de las celdas
-#         deslizadas.
-#         #Funcion operacional, pero por facilidad abre el configfile.
-#         #Argumentos:
-#         ----!!!!!!
-#     '''
 
-########################################################################
-########################################################################
-########################################################################
-########################################################################
+def model_warper(L,verbose=True):
+    ''' # Ejecuta directamente el modelo hidrologico de forma operacional para cada paso del tiempo y la proxima media hora,
+        para esto: lee el binario de lluvia actual y la extrapolacion, si se programa de tal manera actualiza las CI., corre 
+        y genera un archivo con el dataframe de la simulacon de Q en cada nodo para cada paso de tiempo y los binarios del
+        estado final de almacenamiento de los tanques (.StObin y .StOhdr) que leera en la proxima ejecucion. Ademas corre y
+        genera archivos .bin y .hdr de las celdas deslizadas.
+        # Funcion operacional que solo se ejecuta desde la funcion Model_Ejec de alarmas.py.
+        # Argumentos:
+        -L= lista con tantas listas dentro como numero de parametrizaciones se quieran correr. Dentro debe tener en orden:
+        los argumentos de la funcion cu.run_shia(), el nombre de la par. y las rutas de los archivos Ssim y Shist.
+        La funcion Model_Ejec se encarga de crear las listas con todo lo necesario para las ejecucion model_warper().
+    '''
+    #Ejecucion del modelo
+    cu=L[11];Rain=L[12];posControl=L[13]
+    Res = cu.run_shia(L[1],L[2],L[3],L[4], 
+        StorageLoc = L[5], ruta_storage=L[6], kinematicN=12,QsimDataFrame=False)
+    #Escribe resultados 
+    rutaqsim = L[6]+ L[7] +'_'+L[0].split(' ')[-1]+'.json'
+    Qsim = pd.DataFrame(Res['Qsim'][1:].T, 
+        index=Rain.index, 
+        columns=posControl)
+    Qsim.to_json(rutaqsim)
+    #Actualiza historico de caudales simulados de la par. asociada.
+    rutaqhist = L[8]+ rutaqsim.split('/')[-1].split('.')[0]+'hist.'+rutaqsim.split('/')[-1].split('.')[-1]
+    model_write_qhist(rutaqsim,rutaqhist)
+    #Se actualizan los historicos de humedad de la parametrizacion asociada.
+    model_write_Stohist(L[9],L[10])
+    #imprime que ya ejecuto
+    if verbose:
+        print L[0]+' ejecutado'
+    return Res
 
-#FUNCIONES NO USADAS
+def Model_Ejec(ruta_out_rain,cuenca,rutaConfig,verbose=True):
+    ''' #Setea las ejecuciones del modelo hidrologico con lo dispuesto  en el configfile para cada paso del tiempo.
+        #Funcion operacional, pero por estructura interna es mas facil que abra el configfile.
+        #Argumentos:
+        - ruta_out_rain= string, ruta de la carpeta que contiene los binarios de lluvia, leida antes en el cron.
+        - cuenca= simubasin, la cuenca ya leida en el cron.
+        - rutaConfig= string, ruta del configfile
+        - verbose= boolean, imprime los print de lo que se va ejecutando. Default= True.
+    ''' 
+    #cuenca
+    cu=cuenca
+    #se lee el binario de lluvia actual
+    rutaRain = ruta_out_rain + 'Lluvia_actual.bin'
+    rain_bin, rain_hdr = wmf.__Add_hdr_bin_2route__(rutaRain)
+    DataRain = wmf.read_rain_struct(rain_hdr)
+    Rain = wmf.read_mean_rain(rain_hdr)
+    # se lee el configfile
+    ListConfig=get_rutesList(rutaConfig)
+    # se leen las rutas de resultados
+    #rutas de salida - storage
+    ruta_sto = get_ruta(ListConfig, 'ruta_almsim')
+    ruta_stohist = get_ruta(ListConfig, 'ruta_almhist')
+    #rutas de salida - caudal
+    QsimName = get_ruta(ListConfig,'Qsim Name')
+    ruta_Qsim = get_ruta(ListConfig, 'ruta_qsim')
+    ruta_qhist = get_ruta(ListConfig, 'ruta_qsim_hist')
+    #rutas de salida - slides
+    ruta_out_slides = get_ruta(ListConfig, 'ruta_slides')
+    ruta_slides_bin, ruta_slides_hdr = wmf.__Add_hdr_bin_2route__(ruta_out_slides)
 
-########################################################################
-########################################################################
-########################################################################
-########################################################################
+    #Set por defecto de la modelacion
+    wmf.models.show_storage = 1
+    wmf.models.separate_fluxes = 1
+    wmf.models.dt = 300
+    wmf.models.sl_fs = 0.5
+    wmf.models.sim_slides = 1
+    posControl = wmf.models.control[wmf.models.control<>0]
 
-#FUNCIONES FUERA DE alarmas.py O CODIGOS.
-# 'Model_Ejec.py '
-# 'Model_Update_Store.py '
-# 'Graph_StreamFlow_map.py '
-# 'Graph_Moisture_map.py '
-# 'Graph_Slides_map.py '
-########################################################################
-# FUNCIONES PARA OBTENER RUTAS 
+    #Set automatico a partir del configfile
+    #Param de configuracion
+    Lparam = ['Dt[seg]','Dx[mts]',
+        'Almacenamiento medio',
+        'Separar Flujos',
+        'ruta_almacenamiento',
+        'Retorno',
+        'Simular Deslizamientos',
+        'Factor de Seguridad FS',
+        'Factor Corrector Zg']
+    DictParam = {}
+    for i in Lparam:
+        a = get_ruta(ListConfig, i)
+        DictParam.update({i:a})
 
+    #Prepara el tiempo y retornos
+    wmf.models.dt = float(DictParam['Dt[seg]'])
+    wmf.models.retorno = float(DictParam['Retorno'])
+    # Prepara los que son binarios (1) si (0) no
+    if DictParam['Almacenamiento medio'] == 'True':
+        wmf.models.show_storage = 1
+    if DictParam['Separar Flujos'] == 'True':
+        wmf.models.separate_fluxes = 1
+    if DictParam['Simular Deslizamientos'] == 'True':
+        wmf.models.sim_slides = 1
+        wmf.models.sl_fs = float(DictParam['Factor de Seguridad FS'])
+        cu.set_Slides(wmf.models.sl_zs * float(DictParam['Factor Corrector Zg']), 'Zs')
+    # print wmf.models.sl_zs.mean()
 
-def get_rain_last_hours(ruta, rutaTemp, hours, DeltaT = 300):
-    #calcula los pasos 
-    Min = DeltaT/60.0
-    MinInHours = 60.0 / Min
-    Pasos = int(hours * MinInHours)
-    #Escribe la cola de informacion 
-    comando = 'tail '+ruta+' -n '+str(Pasos)+' > '+rutaTemp
-    os.system(comando)
+    #Se leen las calibraciones y la configuracion de actualizar CI.
+    DictCalib = get_modelConfig_lines(ListConfig, '-c', 'Calib')
+    DictStore = get_modelConfig_lines(ListConfig, '-s', 'Store')
 
-def get_modelConfig_lines(RutesList, key, Calib_Storage = None, PlotType = None):
-    List = []
-    for i in RutesList:
-        if i.startswith('|'+key) or i.startswith('| '+key):
-            List.append(i)
-    if len(List)>0:
-        if Calib_Storage == 'Calib':
-            return get_modelCalib(List)
-        if Calib_Storage == 'Store':
-            return get_modelStore(List)
-        if Calib_Storage == 'Update':
-            return get_modelStoreLastUpdate(List)
-        if Calib_Storage == 'Plot':
-            return get_modelPlot(List, PlotType=PlotType)
-        return List
-    else:
-        return 'Aviso: no se encuentran lineas con el key de inicio especificado'
+    ############################ EJECUCION ###########################################
 
-def get_modelPlot(RutesList, PlotType = 'Qsim_map'):
-    for l in RutesList:
-        key = l.split('|')[1].rstrip().lstrip()
-        if key[3:] == PlotType:
-            EjecsList = [i.rstrip().lstrip() for i in l.split('|')[2].split(',')]
-            return EjecsList
-    return key
+    #Prepara las ejecuciones
+    ListEjecs = []
+    Npasos = DataRain[u' Record'].shape[0]
+    for i in DictStore.keys():
+        #trata de leer el almacenamiento 
+        FileName = glob.glob(ruta_sto + DictStore[i]['Nombre'])
+        if len(FileName):
+            S = wmf.models.read_float_basin_ncol(ruta_sto+DictStore[i]['Nombre'],1,cu.ncells,5)[0]
+        else:
+            print 'Error: No se leyeron los binarios de almacenamiento operacionales.'
+        #Arma la ejecucion
+        Calib = DictCalib[DictStore[i]['Calib']]
+        ListEjecs.append([i, Calib, rain_bin, Npasos, 1, S, ruta_Qsim, QsimName,ruta_qhist,ruta_sto+DictStore[i]['Nombre'],ruta_stohist+DictStore[i]['Nombre'][:-7]+'hist.json',cu,Rain,posControl])
 
-def get_modelCalib(RutesList):
-    DCalib = {}
-    for l in RutesList:
-        c = [float(i) for i in l.split('|')[3:-1]]
-        name = l.split('|')[2]
-        DCalib.update({name.rstrip().lstrip(): c})
-    return DCalib
+    #Ejecucion
+    # Cantidad de procesos 
+    Nprocess = len(ListEjecs)
+    if Nprocess > 15:
+        Nprocess = int(Nprocess/1.2)
+    #Ejecucion  en paralelo y guarda caudales 
+    if verbose:
+        print 'Resumen Ejecucion modelo'
+        print '\n'
+    p = Pool(processes=Nprocess)
+    R = p.map(model_warper, ListEjecs)
+    p.close()
+    p.join()
+    #Un brinco para uqe quede lindo el print de deslizamientos.
+    if verbose:
+        print '\n'
+        print 'Resumen deslizamientos'
 
-def get_modelStore(RutesList):
-    DStore = {}
-    for l in RutesList:
-        l = l.split('|')
-        DStore.update({l[1].rstrip().lstrip():
-            {'Nombre': l[2].rstrip().lstrip(),
-            'Actualizar': l[3].rstrip().lstrip(),
-            'Tiempo': float(l[4].rstrip().lstrip()),
-            'Condition': l[5].rstrip().lstrip(),
-            'Calib': l[6].rstrip().lstrip(),
-            'BackSto': l[7].rstrip().lstrip(),
-            'Slides': l[8].rstrip().lstrip()}})
-    return DStore
+    ############################ ESCRIBE EL BINARIO DE DESLIZAMIENTOS ##################
 
-def get_modelStoreLastUpdate(RutesList):
-    DStoreUpdate = {}
-    for l in RutesList:
-        l = l.split('|')
-        DStoreUpdate.update({l[1].rstrip().lstrip():
-            {'Nombre': l[2].rstrip().lstrip(),
-            'LastUpdate': l[3].rstrip().lstrip()}})
-    return DStoreUpdate
+    #Archivo plano que dice cuales son las param que simularon deslizamientos 
+    f = open(ruta_slides_hdr,'w')
+    f.write('## Parametrizaciones Con Simulacion de Deslizamientos \n')
+    f.write('Parametrizacion \t N_celdas_Desliza \n')
+    #Termina de escribir el encabezado y escribe el binario.
+    rec = 0
+    for c,i in enumerate(ListEjecs):
+        if DictStore[i[0]]['Slides'] == 'True':
+            #Determina la cantidad de celdas que se deslizaron
+            Slides = np.copy(R[c]['Slides_Map'])
+            Nceldas_desliz = Slides[Slides<>0].shape[0]
+            f.write('%s \t %d \n' % (i[0], Nceldas_desliz))
+            #si esta verbose dice lo que pasa 
+            if verbose:
+                print 'Param '+i[0]+' tiene '+str(Nceldas_desliz)+' celdas deslizadas.'
+            #Escribe en el binario 
+            rec = rec+1
+            wmf.models.write_int_basin(ruta_out_slides, R[c]['Slides_Map'],rec,cu.ncells,1)
+    f.close()    
+    
+def Genera_riskvectorMap(rutaConfig,cuenca,figSZ):  
+    ''' #Genera un mapa en .png con el risk_vector, esta funcion no es de uso operacional.
+        Por lo que necesita leer directamente el ConfigFile.
+        #Funcion no operacional.
+        #Argumentos:
+        - rutaConfig= string, ruta del configfile.
+        - cuenca= string, ruta del .nc del simubasin de la cuenca.
+        - figSZ= lista, debe tener dos valores dentro de si, x -y del figsize del plot.
+    '''
+    #Lee el archivo de configuracion
+    ListConfig = get_rutesList(rutaConfig)
+    #Lectura de rutas de salida de la imagen
+    ruta_out = get_ruta(ListConfig,'ruta_map_riskvector')
+
+    #Lectura de cuenca 
+    cu = wmf.SimuBasin(rute=cuenca, SimSlides = True)
+    wmf.models.slide_allocate(cu.ncells, 10)
+    #Mapa risk vector.
+    R = wmf.models.sl_riskvector#np.copy(wmf.models.sl_riskvector)
+    #Plot
+    cu.Plot_basinClean(R,figsize=(figSZ[0],figSZ[1]),cmap = pl.get_cmap('viridis',3),ruta=ruta_out)
 
 ########################################################################
 # FUNCIONES PARA EDITAR EL CONFIGFILE.
-
 def write_parameters_on_configfile(rutaConfig,key,add):
-    '''Agrega o cambia parametros (valores, rutas, etc.) a lineas del configfile que inician con key.
-    - rutaConfig: ruta del configfile a editar (ruta en string)
-    - key: palabra clave para identificar la linea a editar (una existente dentro del configfile)
-    - add: lo que se agrega o cambia en el ultimo elemento de la linea (string). Debe terminar con ' \n'.
-    Puede ser vacio (' \n')
-    - Esta funcion necesita que siempre exista un ultimo campo despues del key y los dos puntos ':', asi sea un espacio.
+    ''' #Agrega o cambia parametros (valores, rutas, etc.) a lineas del configfile que inician con key.
+        Esta funcion necesita que siempre exista un ultimo campo despues del key y los dos puntos ':', asi sea un espacio.
+        #Funcion no operacional
+        #Argumentos:
+        - rutaConfig= string, ruta del configfile.
+        - key= palabra clabe de la linea a escribir o sobreescribir.
     '''
     #fuente: https://stackoverflow.com/questions/125703/how-to-modify-a-text-file
 
@@ -1033,6 +1117,256 @@ def write_parameters_on_configfile(rutaConfig,key,add):
     #cierra el archivo
     f.close()
     print 'Aviso: Se edito correctamente la linea **'+key+'** en '+rutaConfig
+
+################################
+#FUNCIONES DE MODEL_UPDATE_STORE
+################################
+
+def get_modelPlot(RutesList, PlotType = 'Qsim_map'):
+    ''' #Devuelve un diccionario con la informacion de la tabla Plot en el configfile.
+        #Funcion operacional.
+        #Argumentos:
+        - RutesList= lista, es el resultado de leer el configfile con al.get_ruteslist.
+        - PlotType= boolean, tipo del plot? . Default= 'Qsim_map'.
+    '''
+    for l in RutesList:
+        key = l.split('|')[1].rstrip().lstrip()
+        if key[3:] == PlotType:
+            EjecsList = [i.rstrip().lstrip() for i in l.split('|')[2].split(',')]
+            return EjecsList
+    return key
+
+def get_modelCalib(RutesList):
+    ''' #Devuelve un diccionario con la informacion de la tabla Calib en el configfile.
+        #Funcion operacional.
+        #Argumentos:
+        - RutesList= lista, es el resultado de leer el configfile con al.get_ruteslist.
+    '''
+    DCalib = {}
+    for l in RutesList:
+        c = [float(i) for i in l.split('|')[3:-1]]
+        name = l.split('|')[2]
+        DCalib.update({name.rstrip().lstrip(): c})
+    return DCalib
+
+def get_modelStore(RutesList):
+    ''' #Devuelve un diccionario con la informacion de la tabla Store en el configfile.
+        #Funcion operacional.
+        #Argumentos:
+        - RutesList= lista, es el resultado de leer el configfile con al.get_ruteslist.
+    '''
+    DStore = {}
+    for l in RutesList:
+        l = l.split('|')
+        DStore.update({l[1].rstrip().lstrip():
+            {'Nombre': l[2].rstrip().lstrip(),
+            'Actualizar': l[3].rstrip().lstrip(),
+            'Tiempo': float(l[4].rstrip().lstrip()),
+            'Condition': l[5].rstrip().lstrip(),
+            'Calib': l[6].rstrip().lstrip(),
+            'BackSto': l[7].rstrip().lstrip(),
+            'Slides': l[8].rstrip().lstrip()}})
+    return DStore
+
+def get_modelStoreLastUpdate(RutesList):
+    ''' #Devuelve un diccionario con la informacion de la tabla Update en el configfile.
+        #Funcion operacional.
+        #Argumentos:
+        - RutesList= lista, es el resultado de leer el configfile con al.get_ruteslist.
+    '''
+    DStoreUpdate = {}
+    for l in RutesList:
+        l = l.split('|')
+        DStoreUpdate.update({l[1].rstrip().lstrip():
+            {'Nombre': l[2].rstrip().lstrip(),
+            'LastUpdate': l[3].rstrip().lstrip()}})
+    return DStoreUpdate
+
+def get_modelConfig_lines(RutesList, key, Calib_Storage = None, PlotType = None):
+    ''' #Devuelve un diccionario con la informacion de las tablas en el configfile: Calib, Store, Update, Plot.
+        #Funcion operacional.
+        #Argumentos:
+        - RutesList= lista, es el resultado de leer el configfile con al.get_ruteslist.
+        - key= string, palabra clave de la tabla que se quiere leer. Puede ser: -s,-t.
+        - Calib_Storage= string, palabra clave de la tabla que se quiere leer. Puede ser: Calib, Store, Update, Plot.
+        - PlotType= boolean, tipo del plot? . Default= None.
+    '''
+    List = []
+    for i in RutesList:
+        if i.startswith('|'+key) or i.startswith('| '+key):
+            List.append(i)
+    if len(List)>0:
+        if Calib_Storage == 'Calib':
+            return get_modelCalib(List)
+        if Calib_Storage == 'Store':
+            return get_modelStore(List)
+        if Calib_Storage == 'Update':
+            return get_modelStoreLastUpdate(List)
+        if Calib_Storage == 'Plot':
+            return get_modelPlot(List, PlotType=PlotType)
+        return List
+    else:
+        return 'Aviso: no se encuentran lineas con el key de inicio especificado.'
+
+def get_rain_last_hours(ruta, rutaTemp, hours, DeltaT = 300):
+    ''' # Funcion usada por las funciones de Model_Update_Store. No entiendo bien lo que hace, pero al parecer solo lista
+        las ultimas filas del hdr de lluvia.
+        # Funcion operacional
+        # Argumentos:
+    '''
+    #calcula los pasos 
+    Min = DeltaT/60.0
+    MinInHours = 60.0 / Min
+    Pasos = int(hours * MinInHours)
+    #Escribe la cola de informacion 
+    comando = 'tail '+ruta+' -n '+str(Pasos)+' > '+rutaTemp
+    os.system(comando)
+
+def model_update_norain_last(key, ruta_rain_temp, DictUpdate, ruta_bck_sto, ruta_sto, DictStore, date, umbral = 1):
+    #lee la lluvia temporal
+    rainHist = pd.read_csv(ruta_rain_temp, 
+        index_col=3, parse_dates=True, 
+        infer_datetime_format=True, header=None,)
+    #Suma la lluvia
+    if rainHist[2].sum() < umbral:
+        if DictUpdate['-t '+k[3:]]['Nombre'] <> 'None':
+            #Remplaza el archivo
+            comando = 'cp '+ruta_bck_sto+DictUpdate['-t '+key[3:]]['Nombre']+' '+ruta_sto+DictStore[key]['Nombre']
+            os.system(comando)
+            #Actualiza la fecha de actualizacion 
+            DictUpdate['-t '+key[3:]]['LastUpdate'] = date
+            return 0
+        else:
+            return 1
+    else:
+        return 1
+
+def model_update_norain_next(key, Rain, DictUpdate,ruta_bck_sto, ruta_sto, DictStore, date, umbral = 1):
+    #Suma la lluvia
+    if Rain.sum()<umbral:
+        if DictUpdate['-t '+k[3:]]['Nombre'] <> 'None':
+            #remplaza
+            comando = 'cp '+ruta_bck_sto+DictUpdate['-t '+key[3:]]['Nombre']+' '+ruta_sto+DictStore[key]['Nombre']
+            os.system(comando)
+            #Actualiza la fecha de actualizacion 
+            DictUpdate['-t '+key[3:]]['LastUpdate'] = date
+            return 0
+        else:
+            return 1
+    else:
+        return 1
+
+def model_update_norain(key, ruta_rain_temp, Rain, DictUpdate, ruta_bck_sto,ruta_sto,DictStore, date, umbral = 1):
+    #lee la lluvia temporal
+    rainHist = pd.read_csv(ruta_rain_temp, 
+        index_col=3, parse_dates=True, 
+        infer_datetime_format=True, header=None,)
+    #Suma la lluvia
+    if rainHist[2].sum() < umbral and Rain.sum()<umbral:
+        if DictUpdate['-t '+k[3:]]['Nombre'] <> 'None':
+            #Remplaza
+            comando = 'cp '+ruta_bck_sto+DictUpdate['-t '+key[3:]]['Nombre']+' '+ruta_sto+DictStore[key]['Nombre']
+            os.system(comando)
+            #Actualiza la fecha de actualizacion 
+            DictUpdate['-t '+key[3:]]['LastUpdate'] = date
+            return 0
+        else:
+            return 1
+    else:
+        return 1
+
+def Model_Update_Store(date,rutaRain,ruta_rain_hist,ruta_rain_temp,ruta_sto,ruta_bck_sto,DeltaT,DictStore,DictUpdate,rutaConfig):
+    '''
+    '''
+    #informacion de la lluvia
+    rain_bin, rain_hdr = wmf.__Add_hdr_bin_2route__(rutaRain)
+    DataRain = wmf.read_rain_struct(rain_hdr)
+    Rain = wmf.read_mean_rain(rain_hdr)
+
+    ############################ ACTUALIZACION ###########################################
+
+    #Fecha Actual pasada como parametro
+    DateNow = pd.to_datetime(date)
+    #Calcula la cantidad de horas desde la ultima actualizacion
+    for k in DictUpdate.keys():
+        dat = pd.to_datetime(DictUpdate[k]['LastUpdate'])
+        deltaT = DateNow - dat
+        DictUpdate[k].update({'Horas': deltaT.total_seconds()/3600.0})
+    #si la cantidad de horas es inferior al umbral evalua si cumple la 
+    #regla establecida 
+    for k in DictStore.keys():
+        #Evalua si esas condiciones se van a actualizar o no, y si cumplen
+        #el tiempo sin ser actualizadas
+        if DictStore[k]['Actualizar'] == 'True':
+            if DictUpdate['-t '+k[3:]]['Horas'] > DictStore[k]['Tiempo']:
+
+                #CASO 1: NO RAIN: no hay lluvia atras ni adelante.
+                if DictStore[k]['Condition'][:-3] == 'No Rain':
+                    #Obtiene las horas de la condicion
+                    hours = float(DictStore[k]['Condition'][-3:-1])
+                    get_rain_last_hours(ruta_rain_hist,ruta_rain_temp,hours, DeltaT)
+                    estado = model_update_norain(k,ruta_rain_temp, Rain, DictUpdate, ruta_bck_sto,ruta_sto,DictStore, date, umbral)
+
+                #CASO 2: NO RAIN NEXT: No hay lluvia adelante.
+                elif DictStore[k]['Condition'][:-3] == 'No Rain Next':
+                    estado = model_update_norain_next(k, Rain, DictUpdate,ruta_bck_sto, ruta_sto, DictStore, date, umbral)
+
+                #CASO 3: NO RAIN LAST: no hay lluvia atras.
+                elif DictStore[k]['Condition'][:-3] == 'No Rain Last':
+                    #Obtiene las horas de la condicion
+                    hours = float(DictStore[k]['Condition'][-3:-1])
+                    get_rain_last_hours(ruta_rain_hist,ruta_rain_temp,hours, DeltaT)
+                    estado = model_update_norain_last(k, ruta_rain_temp, DictUpdate, ruta_bck_sto, ruta_sto, DictStore, date, umbral)
+                #CASO 4: ...
+
+                #si esta diciendo lo que hace dice:
+                if verbose:
+                    if estado == 0:
+                        print 'Aviso: Se han remplazado los estados de: '+k
+                    else:
+                        print 'Aviso: No se han remplazado los estados de: '+k
+
+    #Actualiza las fechas dentro del archivo de configuracion 
+    #Lee el archivo de configuracion
+    ListConfig = get_rutesList(rutaConfig)
+    #Obtiene las posiciones en la tabla
+    pos = []
+    key = '-t'
+    for c,i in enumerate(ListConfig):
+        if i.startswith('|'+key) or i.startswith('| '+key):
+            pos.append(c)
+    #Ordena las reglas 
+    Keys = DictUpdate.keys()
+    Keys.sort()
+    #Obtiene las nuevas 
+    for c,p in enumerate(pos):
+        ListConfig[p] = '| '+Keys[c]+'|'+DictUpdate[Keys[c]]['Nombre']+'|'+DictUpdate[Keys[c]]['LastUpdate']+'|\n'
+    #Escribe el nuevo archivo 
+    f = open(rutaConfig,'w')
+    f.writelines(ListConfig)
+    f.close()
+    
+#FUNCIONES NO USADAS
+
+########################################################################
+########################################################################
+########################################################################
+########################################################################
+########################################################################
+########################################################################
+########################################################################
+########################################################################
+
+#FUNCIONES FUERA DE alarmas.py O CODIGOS.
+# 'Model_Update_Store.py '
+# 'Graph_StreamFlow_map.py '
+# 'Graph_Moisture_map.py '
+# 'Graph_Slides_map.py '
+########################################################################
+# FUNCIONES PARA OBTENER RUTAS 
+
+
+
 
 ########################################################################
 # FUNCIONES PARA LIDIAR CON CAMPOS DE LLUVIA
@@ -1143,18 +1477,3 @@ def model_def_rutes(ruteStore, ruteStoreHist):
 
 
 
-def Genera_riskvectorMap(rutaConfig,cuenca,figSZ):  
-    ''' Genera un mapa en .png con el risk_vector, esta funcion no es de uso operacional.
-        Por lo que necesita leer directamente el ConfigFile.'''
-    #Lee el archivo de configuracion
-    ListConfig = get_rutesList(rutaConfig)
-    #Lectura de rutas de salida de la imagen
-    ruta_out = get_ruta(ListConfig,'ruta_map_riskvector')
-
-    #Lectura de cuenca 
-    cu = wmf.SimuBasin(rute=cuenca, SimSlides = True)
-    wmf.models.slide_allocate(cu.ncells, 10)
-    #Mapa risk vector.
-    R = wmf.models.sl_riskvector#np.copy(wmf.models.sl_riskvector)
-    #Plot
-    cu.Plot_basinClean(R,figsize=(figSZ[0],figSZ[1]),cmap = pl.get_cmap('viridis',3),ruta=ruta_out)

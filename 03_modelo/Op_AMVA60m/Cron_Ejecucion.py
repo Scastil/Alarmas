@@ -119,11 +119,22 @@ print '###################################### EJECUCION DEL MODELO #############
 #Ejecucion del modelo en el ultimo intervalo de tiempo
 #-----------------------------------------------------
 
-# comando = ruta_codigos+'Model_Ejec.py '+ruta_cuenca+' '+ruta_configuracion_1+' -v'
-# os.system(comando)
-# time.sleep(15)
+al.Model_Ejec(ruta_out_rain,cuenca,ruta_configuracion_1)
 
-# #Actualiza las condiciones del modelo 
+#Actualiza las condiciones del modelo 
+
+rutaRain=lluvia_actual+'.bin'
+ruta_rain_hist = al.get_ruta(RutasList, 'ruta_rainHistoryFile')
+ruta_sto = al.get_ruta(RutasList, 'ruta_almsim')
+ruta_bck_sto = al.get_ruta(RutasList, 'ruta_bkc_alm')
+DeltaT = float(al.get_ruta(RutasList, 'Dt[seg]'))
+#Lista de calibraciones
+DictStore = al.get_modelConfig_lines(RutasList, '-s', 'Store')
+DictUpdate = al.get_modelConfig_lines(RutasList, '-t', 'Update')
+ruta_rain_temp = '/var/tmp/RainTemp.hdr'
+
+al.Model_Update_Store(dateText,rutaRain,ruta_rain_hist,ruta_rain_temp,ruta_sto,ruta_bck_sto,DeltaT,DictStore,DictUpdate,ruta_configuracion_1)
+
 # comando = ruta_codigos+'Model_Update_Store.py '+dateText+' '+ruta_configuracion_1+' -v'
 # os.system(comando)
 

@@ -124,13 +124,13 @@ para alguno de los casos presentados en la tabla:
 
 |id| Nombre                   | Update | Tiempo[h] | Condicion  | Calib Actualiza | Back Sto        | Slides |
 |:-:|:------------------------|:-------:|:------:|:----------:|:---------------:|:---------------:|:------:|
-| -s 001| storage_001.StObin | False    | 7     | No Rain Next 2h| 001          | Sto_wet-s01.StoBin | True|
+| -s 001| storage_001.StObin | True   | 0     | No Rain 0h | 001          | Sto_wet-s01.StoBin | True|
 
 **Tabla**: Fechas de actualizacion de almacenamientos.
 
 |id     | Nombre                 | Ultima Actualizacion |
 |:-----:|:-----------------------|:--------------------:|
-| -t 001|CuBarbosa_001_001.StObin|2017-09-20-15:50|
+| -t 001|CuBarbosa_001_001.StObin|2018-01-15 21:50:00|
 
 
 ___
