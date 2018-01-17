@@ -8,7 +8,7 @@ los espacios, deben tener la sgte. estructura: - **nombreruta**: ruta.
 	> Ruta en donde se encuentran los campos de preciptacion a aprtir de radar para todo el area de alcance del sensor.
 - **ruta_cuenca**: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/01_database/NCs/Barbosa_Slides_60m.nc
 	> Ruta en donde se encuentra el .nc de la cuenca para la simulación.
-- **ruta_bkc_alm**: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/03_modelo/Op_AMVA60m/03_backsto/
+- **ruta_bkc_alm**: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/03_modelo/Op_AMVA60m/backsto/
         > Ruta en donde se encuentran las copias de almacenamiento que pueden remplazar a las operacionales
 
 
@@ -120,17 +120,17 @@ para alguno de los casos presentados en la tabla:
 - **Inicial Corriente**:
 
 
-**Tabla**: almacenamientos de ejecuciones.
+**Tabla**: almacenamientos de ejecuciones. Nota: Los últimos dos elementos de 'Condicion' deben ser el número de horas y el simbolo 'h'.
 
 |id| Nombre                   | Update | Tiempo[h] | Condicion  | Calib Actualiza | Back Sto        | Slides |
 |:-:|:------------------------|:-------:|:------:|:----------:|:---------------:|:---------------:|:------:|
-| -s 001| storage_001.StObin | True   | 0     | No Rain 0h | 001          | Sto_wet-s01.StoBin | True|
+| -s 001| storage_001.StObin | True   | 0     | No Rain Last 0 h | 001          | Sto_wet-s01.StoBin | True|
 
 **Tabla**: Fechas de actualizacion de almacenamientos.
 
 |id     | Nombre                 | Ultima Actualizacion |
 |:-----:|:-----------------------|:--------------------:|
-| -t 001|CuBarbosa_001_001.StObin|2018-01-15 21:50:00|
+| -t 001|CuBarbosa_001_001.StObin|2018-01-17-10:27|
 
 
 ___
@@ -153,18 +153,18 @@ humedad en la cuenca.
 	> Ruta donde se guardan los mapas de deslizamientos producidos por la modelación.
 - **ruta_levelspng**: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/05_web/modelo_op/OpAMVA60m/LevelsGraphs
 	> Ruta donde se sgeneran las figuras de simulacion de caudales y niveles.
-- **ruta_niveles**: /media/nicolas/Home/Jupyter/Soraya/Op_Alarmas/git/Alarmas/05_web/modelo_op/OpAMVA60m/Nsim/
+- **ruta_niveles**: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/05_web/modelo_op/OpAMVA60m/Nsim/
 	> Ruta donde se escriben los niveles simulados corregidos para las graficas de los operacionales
-- **ruta_Json**: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/05_web/modelo_op/_OpAMVA60m/
+- **ruta_Json**: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/05_web/modelo_op/OpAMVA60m/
 	> Ruta donde se guarda el json con la Qsim de la parametrizacion escogida.
 
 **Tabla**: Variables y parametrizaciones a plotear.
 
 | Variable		  | Variable |
 |:---------------:|:--------:|
-| -p Qsim_map 		  | 001,002,003,004|
-| -p Humedad_map 	  | 001,002,003,004|
-| -p Slides 		  | 001,002,003,004|
+| -p Qsim_map 		  | 001|
+| -p Humedad_map 	  | 001|
+| -p Slides 		  | 001|
 
 
 	

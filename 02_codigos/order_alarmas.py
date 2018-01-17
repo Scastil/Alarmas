@@ -148,10 +148,6 @@ def Graph_AcumRain(fechaI,fechaF,cuenca,rutaRain,rutaFigura,vmin=0,vmax=100,verb
         pos = R[fecha_i:fecha_f].values
         pos = pos[pos <>1 ]
 
-        #~ #imprime el tamano de lo que esta haciendo 
-        #~ if verbose:
-            #~ print fecha_f - fecha_i
-
         #si hay barridos para graficar
         if len(pos)>0:
             #-------
@@ -176,7 +172,7 @@ def Graph_AcumRain(fechaI,fechaF,cuenca,rutaRain,rutaFigura,vmin=0,vmax=100,verb
                 #~ cbar_aspect = 17,
                 ruta = rutaFigura,
                 figsize = (10,12),show=False)
-            c[1].set_title('Mapa Lluvia de Radar Acumulada', fontsize=16)
+            # c[1].set_title('Mapa Lluvia de Radar Acumulada', fontsize=16)
             if verbose:
                 print 'Aviso: Se ha producido una grafica nueva con valores diferentes de cero en '+rutaFigura
                 print fecha_f - fecha_i
@@ -222,9 +218,9 @@ def Genera_json(rutaQhist,rutaQsim,ruta_out,verbose=True):
     '''
     #Carga los caudales simulados de la parametrizacionn escogida
     #Qsim historico dataframe
-    Qhist = pd.read_msgpack(rutaQhist)
+    Qhist = pd.read_json(rutaQhist)
     #Qsim actual y next1hr dataframe
-    Qsim=pd.read_msgpack(rutaQsim)
+    Qsim=pd.read_json(rutaQsim)
     #Se toman los nodos desde Qsim
     Nodos = Qsim.columns.values
 
@@ -335,29 +331,28 @@ def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,n
 
     #Se leen resultados de simulacion de todas las par. para todos los nodos.
     #Leer ultima hora de historico Qsim para cada par.
-    rutah=ruta_inQhist+'*'
+    rutah=ruta_inQhist+'*.json'
     readh=glob.glob(rutah)
     #Leer las simulacion actual+extrapolacion
-    ruta1=ruta_inQsim+'_caudal/*'
+    ruta1=ruta_inQsim+'*.json'
     read1=glob.glob(ruta1)
     #Guarda series completas e hist para sacar Nash
     Qhist=[];Qact=[]
     for rqhist,rqsim in zip(np.sort(readh),np.sort(read1)):
-        if rqhist.endswith('.msg') and rqsim.endswith('.msg'):
-            #Q HIST
-            dfhist=pd.read_msgpack(rqhist)
-            # #crea index para poner nans en faltantes, si los hay.
-            # rngindex=pd.date_range(dfhist.index[0],dfhist.index[-1],freq='5min')
-            # dfhist=dfhist.reindex(rngindex)
-            #ultima hora, 12 pasos de 5 min.
-            qhist=dfhist[-12:]
-            #hist para sacar Nash, ultima hr del nodo de salida.
-            Qhist.append(qhist[nodo_ests[0]][-12:])
-            #Q ACT
-            dfsim=pd.read_msgpack(rqsim)
-            qEst=dfsim
-            #ult hr+ extrapolacion
-            Qact.append(qhist.append(qEst))
+        #Q HIST
+        dfhist=pd.read_json(rqhist)
+        # #crea index para poner nans en faltantes, si los hay.
+        # rngindex=pd.date_range(dfhist.index[0],dfhist.index[-1],freq='5min')
+        # dfhist=dfhist.reindex(rngindex)
+        #ultima hora, 12 pasos de 5 min.
+        qhist=dfhist[-12:]
+        #hist para sacar Nash, ultima hr del nodo de salida.
+        Qhist.append(qhist[nodo_ests[0]][-12:])
+        #Q ACT
+        dfsim=pd.read_json(rqsim)
+        qEst=dfsim
+        #ult hr+ extrapolacion
+        Qact.append(qhist.append(qEst))
 
     for nodo,code,media in zip(nodo_ests,code_ests,media_hs):
         #Lee ruta del archivo a guardar, si no existe se crea
@@ -372,7 +367,11 @@ def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,n
         if len(otra) == 0:
             os.system('mkdir '+ruta_outNsim)
         #Obtiene las ruta de archivo de salida
-        ruta_out_serie = ruta_outNsim+'NSim'+str(code)+'.msg'
+        ruta_out_serie = ruta_outNsim+'NSim'+str(code)+'.csv'
+
+        otra = glob.glob(ruta_outNsim)
+        if len(otra) == 0:
+            os.system('mkdir '+ruta_outNsim)
 
         #-------------------------------------------------------------------------------------------------------
         #Grafica comparativa de niveles, con escala de colores y backgroud de siata.
@@ -486,7 +485,7 @@ def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,n
             Nnodo.append(Nsim)
         # Se guardan los Nsim para el programa de Mario
         Nsims=pd.DataFrame(np.array(Nnodo).T, index=Nnodo[0].index)
-        Nsims.to_msgpack(ruta_out_serie)
+        Nsims.to_csv(ruta_out_serie)
 
         # Cosas para graficar niveles de riesgo.
         ylim4=n4+(n4*0.2)
@@ -571,7 +570,7 @@ def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,n
 
     if verbose:
         print 'Aviso: Plot de niveles generado en '+ruta_out_png
-
+        
 def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umbral=0.005,noextrapol=False,old=False,
                         save_class=False,save_escenarios=False,verbose=True,super_verbose=False):
     ''' #Toma los campos de precipitacion de radar, conv y stratiformes tipo nc y los convierte al formato de la cuenca, esta
@@ -1208,28 +1207,44 @@ def get_modelConfig_lines(RutesList, key, Calib_Storage = None, PlotType = None)
     else:
         return 'Aviso: no se encuentran lineas con el key de inicio especificado.'
 
-def get_rain_last_hours(ruta, rutaTemp, hours, DeltaT = 300):
-    ''' # Funcion usada por las funciones de Model_Update_Store. No entiendo bien lo que hace, pero al parecer solo lista
-        las ultimas filas del hdr de lluvia.
-        # Funcion operacional
-        # Argumentos:
-    '''
-    #calcula los pasos 
-    Min = DeltaT/60.0
-    MinInHours = 60.0 / Min
-    Pasos = int(hours * MinInHours)
-    #Escribe la cola de informacion 
-    comando = 'tail '+ruta+' -n '+str(Pasos)+' > '+rutaTemp
-    os.system(comando)
+# def get_rain_last_hours(ruta, rutaTemp, hours, DeltaT = 300):
+#     ''' # Funcion usada por las funciones de Model_Update_Store. No entiendo bien lo que hace, pero al parecer solo lista
+#         las ultimas filas del hdr de lluvia.
+#         # Funcion operacional
+#         # Argumentos:
+#     '''
+#     #calcula los pasos 
+#     Min = DeltaT/60.0
+#     MinInHours = 60.0 / Min
+#     Pasos = int(hours * MinInHours)
+#     #Escribe la cola de informacion 
+#     comando = 'tail '+ruta+' -n '+str(Pasos)+' > '+rutaTemp
+#     os.system(comando)
 
-def model_update_norain_last(key, ruta_rain_temp, DictUpdate, ruta_bck_sto, ruta_sto, DictStore, date, umbral = 1):
+def model_update_norain_last(key, ruta_rain_hist, DictUpdate, ruta_bck_sto, ruta_sto, DictStore, date, hours, umbral = 1):
+    ''' #Actualiza directamente las CI. del modelo de acuerdo a la condicion estipulada en el configfile.
+        #Funcion operacional, usada unicamente por Model_Update_Store.
+        #Argumentos:
+        -key: string, palabra clave de la tabla
+        -ruta_rain_hist: string, ruta del archivo historico de lluvia de la cuenca .hdr.
+        -DictUpdate: diccionario, con la informacion de la tabla Update del configfile.
+        -ruta_bck_sto: string, ruta de la carpeta que aloja los binarios backsto.
+        -ruta_sto: string, ruta de la carpeta que aloja los archivos operacionale de almacenamiento.
+        -DictStore: diccionario, con la informacion de la tabla Store del configfile.
+        -date: string, fecha de corida del cron. Formato: '%Y-%m-%d-%H:%M:%S'
+        -hours: int, numero de horas transcurridas para hacer updates, ledas en el configfile.
+        -umbral: float, condicion que debe superarse para hacer update. Default= 1.
+    '''
     #lee la lluvia temporal
-    rainHist = pd.read_csv(ruta_rain_temp, 
-        index_col=3, parse_dates=True, 
-        infer_datetime_format=True, header=None,)
-    #Suma la lluvia
-    if rainHist[2].sum() < umbral:
-        if DictUpdate['-t '+k[3:]]['Nombre'] <> 'None':
+    rainHist = wmf.read_mean_rain(ruta_rain_hist)
+    #condicion
+    if hours==0:
+        acum=rainHist[-12*hours+rainHist.size:].sum()
+    else:
+        acum=rainHist[-12*hours:].sum()
+    #analiza si se hace update
+    if acum < umbral:
+        if DictUpdate['-t '+key[3:]]['Nombre'] <> 'None':
             #Remplaza el archivo
             comando = 'cp '+ruta_bck_sto+DictUpdate['-t '+key[3:]]['Nombre']+' '+ruta_sto+DictStore[key]['Nombre']
             os.system(comando)
@@ -1242,9 +1257,21 @@ def model_update_norain_last(key, ruta_rain_temp, DictUpdate, ruta_bck_sto, ruta
         return 1
 
 def model_update_norain_next(key, Rain, DictUpdate,ruta_bck_sto, ruta_sto, DictStore, date, umbral = 1):
+    ''' #Actualiza directamente las CI. del modelo de acuerdo a la condicion estipulada en el configfile.
+        #Funcion operacional, usada unicamente por Model_Update_Store.
+        #Argumentos:
+        -key: string, palabra clave de la tabla
+        -Rain: pd.Series, con la lectura del .hdr de lluvia_actual.
+        -DictUpdate: diccionario, con la informacion de la tabla Update del configfile.
+        -ruta_bck_sto: string, ruta de la carpeta que aloja los binarios backsto.
+        -ruta_sto: string, ruta de la carpeta que aloja los archivos operacionale de almacenamiento.
+        -DictStore: diccionario, con la informacion de la tabla Store del configfile.
+        -date: string, fecha de corida del cron. Formato: '%Y-%m-%d-%H:%M:%S'
+        -umbral: float, condicion que debe superarse para hacer update. Default= 1.
+    '''    
     #Suma la lluvia
     if Rain.sum()<umbral:
-        if DictUpdate['-t '+k[3:]]['Nombre'] <> 'None':
+        if DictUpdate['-t '+key[3:]]['Nombre'] <> 'None':
             #remplaza
             comando = 'cp '+ruta_bck_sto+DictUpdate['-t '+key[3:]]['Nombre']+' '+ruta_sto+DictStore[key]['Nombre']
             os.system(comando)
@@ -1256,14 +1283,31 @@ def model_update_norain_next(key, Rain, DictUpdate,ruta_bck_sto, ruta_sto, DictS
     else:
         return 1
 
-def model_update_norain(key, ruta_rain_temp, Rain, DictUpdate, ruta_bck_sto,ruta_sto,DictStore, date, umbral = 1):
+def model_update_norain(key, ruta_rain_hist, Rain, DictUpdate, ruta_bck_sto,ruta_sto,DictStore, date, hours, umbral = 1):
+    ''' #Actualiza directamente las CI. del modelo de acuerdo a la condicion estipulada en el configfile.
+        #Funcion operacional, usada unicamente por Model_Update_Store.
+        #Argumentos:
+        -key: string, palabra clave de la tabla
+        -ruta_rain_hist: string, ruta del archivo historico de lluvia de la cuenca .hdr.
+        -Rain: pd.Series, con la lectura del .hdr de lluvia_actual.
+        -DictUpdate: diccionario, con la informacion de la tabla Update del configfile.
+        -ruta_bck_sto: string, ruta de la carpeta que aloja los binarios backsto.
+        -ruta_sto: string, ruta de la carpeta que aloja los archivos operacionale de almacenamiento.
+        -DictStore: diccionario, con la informacion de la tabla Store del configfile.
+        -date: string, fecha de corida del cron. Formato: '%Y-%m-%d-%H:%M:%S'
+        -hours: int, numero de horas transcurridas para hacer updates, leidas en el configfile.
+        -umbral: float, condicion que debe superarse para hacer update. Default= 1.
+    '''    
     #lee la lluvia temporal
-    rainHist = pd.read_csv(ruta_rain_temp, 
-        index_col=3, parse_dates=True, 
-        infer_datetime_format=True, header=None,)
-    #Suma la lluvia
-    if rainHist[2].sum() < umbral and Rain.sum()<umbral:
-        if DictUpdate['-t '+k[3:]]['Nombre'] <> 'None':
+    rainHist = wmf.read_mean_rain(ruta_rain_hist)
+    #condicion
+    if hours==0:
+        acum=rainHist[-12*hours+rainHist.size:].sum()
+    else:
+        acum=rainHist[-12*hours:].sum()
+    #analiza si se hace update
+    if acum < umbral and Rain.sum()<umbral:
+        if DictUpdate['-t '+key[3:]]['Nombre'] <> 'None':
             #Remplaza
             comando = 'cp '+ruta_bck_sto+DictUpdate['-t '+key[3:]]['Nombre']+' '+ruta_sto+DictStore[key]['Nombre']
             os.system(comando)
@@ -1275,10 +1319,21 @@ def model_update_norain(key, ruta_rain_temp, Rain, DictUpdate, ruta_bck_sto,ruta
     else:
         return 1
 
-def Model_Update_Store(date,rutaRain,ruta_rain_hist,ruta_rain_temp,ruta_sto,ruta_bck_sto,DeltaT,DictStore,DictUpdate,rutaConfig):
-    '''
-    '''
-    #informacion de la lluvia
+def Model_Update_Store(date,rutaRain,ruta_rain_hist,ruta_sto,ruta_bck_sto,DeltaT,DictStore,DictUpdate,rutaConfig,verbose=True):
+    ''' # Analiza si actualizar las CI. del modelo de acuerdo a las condiciones estipuladas en el configfile.
+        #Funcion operacional que lee el configfile porque dada cierta condicion necesita editarlo.
+        #Argumentos:
+        -date: string, fecha de corida del cron. Formato: '%Y-%m-%d-%H:%M:%S'
+        -rutaRain: string, ruta el .hdr de lluvia_actual.
+        -ruta_rain_hist: string, ruta del archivo historico de lluvia de la cuenca .hdr.
+        -ruta_sto: string, ruta de la carpeta que aloja los archivos operacionale de almacenamiento.
+        -ruta_bck_sto: string, ruta de la carpeta que aloja los binarios backsto.
+        -DeltaT: float, lectura del campo del mismo nombre en el configfile.
+        -DictStore: diccionario, con la informacion de la tabla Store del configfile.
+        -DictUpdate: diccionario, con la informacion de la tabla Update del configfile.
+        -ruta_configuracion_1: ruta del configfile.
+    '''    
+    # lee la lluvia
     rain_bin, rain_hdr = wmf.__Add_hdr_bin_2route__(rutaRain)
     DataRain = wmf.read_rain_struct(rain_hdr)
     Rain = wmf.read_mean_rain(rain_hdr)
@@ -1298,55 +1353,281 @@ def Model_Update_Store(date,rutaRain,ruta_rain_hist,ruta_rain_temp,ruta_sto,ruta
         #Evalua si esas condiciones se van a actualizar o no, y si cumplen
         #el tiempo sin ser actualizadas
         if DictStore[k]['Actualizar'] == 'True':
-            if DictUpdate['-t '+k[3:]]['Horas'] > DictStore[k]['Tiempo']:
+            if DictUpdate['-t '+k[3:]]['Horas'] >= DictStore[k]['Tiempo']:
 
-                #CASO 1: NO RAIN: no hay lluvia atras ni adelante.
-                if DictStore[k]['Condition'][:-3] == 'No Rain':
+                #CASO 1: NO RAIN NEXT: No hay lluvia adelante.
+                if DictStore[k]['Condition'].split(' ')[0]+' '+DictStore[k]['Condition'].split(' ')[1]+' '+DictStore[k]['Condition'].split(' ')[2] == 'No Rain Next':
+                    estado = model_update_norain_next(k, Rain, DictUpdate,ruta_bck_sto, ruta_sto, DictStore, date)
+
+                #CASO 2: NO RAIN LAST: no hay lluvia atras.
+                elif DictStore[k]['Condition'].split(' ')[0]+' '+DictStore[k]['Condition'].split(' ')[1]+' '+DictStore[k]['Condition'].split(' ')[2] == 'No Rain Last':
                     #Obtiene las horas de la condicion
-                    hours = float(DictStore[k]['Condition'][-3:-1])
-                    get_rain_last_hours(ruta_rain_hist,ruta_rain_temp,hours, DeltaT)
-                    estado = model_update_norain(k,ruta_rain_temp, Rain, DictUpdate, ruta_bck_sto,ruta_sto,DictStore, date, umbral)
+                    hours = int(DictStore[k]['Condition'].split(' ')[-2])
+                    estado = model_update_norain_last(k, ruta_rain_hist, DictUpdate, ruta_bck_sto, ruta_sto, DictStore, date,hours)
 
-                #CASO 2: NO RAIN NEXT: No hay lluvia adelante.
-                elif DictStore[k]['Condition'][:-3] == 'No Rain Next':
-                    estado = model_update_norain_next(k, Rain, DictUpdate,ruta_bck_sto, ruta_sto, DictStore, date, umbral)
-
-                #CASO 3: NO RAIN LAST: no hay lluvia atras.
-                elif DictStore[k]['Condition'][:-3] == 'No Rain Last':
+                #CASO 3: NO RAIN: no hay lluvia atras ni adelante.
+                elif DictStore[k]['Condition'].split(' ')[0]+' '+DictStore[k]['Condition'].split(' ')[1] == 'No Rain':
                     #Obtiene las horas de la condicion
-                    hours = float(DictStore[k]['Condition'][-3:-1])
-                    get_rain_last_hours(ruta_rain_hist,ruta_rain_temp,hours, DeltaT)
-                    estado = model_update_norain_last(k, ruta_rain_temp, DictUpdate, ruta_bck_sto, ruta_sto, DictStore, date, umbral)
+                    hours = int(DictStore[k]['Condition'].split(' ')[-2])
+                    estado = model_update_norain(k,ruta_rain_hist, Rain, DictUpdate, ruta_bck_sto,ruta_sto,DictStore, date,hours)
+
                 #CASO 4: ...
 
                 #si esta diciendo lo que hace dice:
                 if verbose:
                     if estado == 0:
+                        #Actualiza las fechas dentro del archivo de configuracion 
+                        #Lee el archivo de configuracion
+                        ListConfig = get_rutesList(rutaConfig)
+                        #Obtiene las posiciones en la tabla
+                        pos = []
+                        key = '-t'
+                        for c,i in enumerate(ListConfig):
+                            if i.startswith('|'+key) or i.startswith('| '+key):
+                                pos.append(c)
+                        #Ordena las reglas 
+                        Keys = DictUpdate.keys()
+                        Keys.sort()
+                        #Obtiene las nuevas 
+                        for c,p in enumerate(pos):
+                            ListConfig[p] = '| '+Keys[c]+'|'+DictUpdate[Keys[c]]['Nombre']+'|'+DictUpdate[Keys[c]]['LastUpdate']+'|\n'
+                        #Escribe el nuevo archivo 
+                        f = open(rutaConfig,'w')
+                        f.writelines(ListConfig)
+                        f.close()
                         print 'Aviso: Se han remplazado los estados de: '+k
                     else:
                         print 'Aviso: No se han remplazado los estados de: '+k
 
-    #Actualiza las fechas dentro del archivo de configuracion 
-    #Lee el archivo de configuracion
-    ListConfig = get_rutesList(rutaConfig)
-    #Obtiene las posiciones en la tabla
-    pos = []
-    key = '-t'
-    for c,i in enumerate(ListConfig):
-        if i.startswith('|'+key) or i.startswith('| '+key):
-            pos.append(c)
-    #Ordena las reglas 
-    Keys = DictUpdate.keys()
-    Keys.sort()
-    #Obtiene las nuevas 
-    for c,p in enumerate(pos):
-        ListConfig[p] = '| '+Keys[c]+'|'+DictUpdate[Keys[c]]['Nombre']+'|'+DictUpdate[Keys[c]]['LastUpdate']+'|\n'
-    #Escribe el nuevo archivo 
-    f = open(rutaConfig,'w')
-    f.writelines(ListConfig)
-    f.close()
+def Plot_qsim_map(Lista,verbose=False):
+    #obtiene la razon entre Qsim y Qmed 
+    cu=Lista[2]
+    qmed = cu.Load_BasinVar('qmed')
+    horton = cu.Load_BasinVar('horton')
+    cauce = cu.Load_BasinVar('cauce')
+    Razon = Lista[-2] / qmed
+    #Prepara mapas de grosor y de razon 
+    RazonC = np.ones(cu.ncells)
+    Grosor = np.ones(cu.ncells)
+    for c,i in enumerate([20,50,80,200]):
+        for h in range(1,6):        
+            camb = 6 - h
+            RazonC[(Razon >= i*camb) & (horton == h)] = c+2
+            Grosor[(Razon >= i*camb) & (horton == h)] = np.log((c+1)*10)**1.4
+    #Plot 
+    Coord = cu.Plot_Net(Grosor, RazonC,  
+        tranparent = True, 
+        ruta = Lista[1],
+        clean = True, 
+        show_cbar = False, 
+        figsize = (10,12), 
+        umbral = cauce, 
+        escala = 1.5,
+        cmap = wmf.pl.get_cmap('viridis',5),
+        vmin = None,
+        vmax = None,
+        show = True)
+    #dice lo que hace
+    if verbose:
+        print 'Aviso: Plot de StreamFlow para '+Lista[-1]+' generado.'
+
+def Graph_Streamflowmap(date,cuenca,ruta_qsim,ruta_sto,ListPlotVar,DictStore,coord=False,record=1,verbose=True):
+    #lectura de constantes 
+    cu=cuenca
+    #construye las listas para plotear en paralelo
+    ListaEjec = []
+    for l in ListPlotVar:
+        ruta_in = ruta_sto + DictStore['-s '+l]['Nombre']
+        #Mira la ruta del folder y si no existe la crea
+        ruta_folder = ruta_qsim +'-'+l+'/'
+        Esta = glob.glob(ruta_folder)
+        if len(Esta) == 0:
+            os.system('mkdir '+ruta_folder)
+        #Obtiene las rutas de los archivos de salida
+        ruta_out_png = ruta_folder + 'StreamFlow_'+l+'_'+date+'.png'
+        v,r = wmf.models.read_float_basin_ncol(ruta_in,record, cu.ncells, 5)
+        ListaEjec.append([ruta_in, ruta_out_png, cu, v[-1], l])
+
+    #Ejecuta los plots
+    if len(ListaEjec) > 15:
+        Nprocess = 15
+    else:
+        Nprocess = len(ListaEjec)
+    p = Pool(processes = Nprocess)
+    p.map(Plot_qsim_map, ListaEjec)
+    p.close()
+
+    # #Guarda archuivo con coordenadas
+    # if coord:
+    #     f = open(ListaEjec[0][2], 'w')
+    #     for t,i in zip(['Left', 'Right', 'Bottom', 'Top'], Coord):
+    #         f.write('%s, \t %.4f \n' % (t,i))
+    #     f.close()
+
+def Plot_Hsim(Lista):
+    #Plot
+    cu=Lista[2]
+    VarToPlot=((Lista[-2][0]+Lista[-2][2])/(wmf.models.max_gravita+wmf.models.max_capilar))*100
+    # si supera un umbral de saturacion se grafica, si no no.
+    if VarToPlot.max() >= 4:
+        bins=4
+        ticks_vec=np.arange(0,VarToPlot.max(),int(VarToPlot.max())/bins)
+        Coord,ax=cu.Plot_basinClean(VarToPlot,
+                        ruta=Lista[1],
+                        cmap = pl.get_cmap('viridis',8),
+                        figsize = (30,15),
+                        # show_cbar=True,
+                        # #se configura los ticks del colorbar para que aparezcan siempre la misma cantidad y del mismo tamano
+                        # cbar_ticks=ticks_vec,cbar_ticklabels=ticks_vec,cbar_ticksize=15,
+                        show=False)
+        #ax.set_title('Moisture Map Par'+Lista[-1]+' '+args.date, fontsize=18 )
+        # pl.suptitle('Saturacion del suelo [%] Par'+Lista[-1]+' '+args.date, fontsize=16, x=0.5, y=0.09)
+        # ax.figure.savefig(Lista[1],bbox_inches='tight')
+        print 'Aviso: Plot de Humedad para '+Lista[-1]+' generado.'
+    else:
+        print 'Aviso: No hay celdas con almenos 4% para Plot de Humedad: max '+str(VarToPlot.max())
+
+def Graph_Moisturemap(date,cuenca,ruta_sto,ruta_Hsim,DictStore,ListPlotVar,coord=False,record=1,verbose=True):
+    #Lectura de cuenca y variables
+    cu =cuenca
+    #construye las listas para plotear en paralelo
+    ListaEjec = []
+    for l in ListPlotVar:
+        #Se define ruta donde se leeran los resultados a plotear
+        ruta_in = ruta_sto + DictStore['-s '+l]['Nombre']
+        #Se crea un folder en el que se van a contener las imagenes de cada parametrizacion asignada
+        #Mira la ruta del folder y si no existe la crea
+        ruta_folder = ruta_Hsim+l+'/'
+        Esta = glob.glob(ruta_folder)
+        if len(Esta) == 0:
+            os.system('mkdir '+ruta_folder)
+        #Obtiene las rutas de los archivos de salida
+        ruta_out_png = ruta_folder +'Humedad'+l+'_'+date+'.png'
+        #Lee los binarios de humedad para la cuenca de cada parametrizacion
+        v,r = wmf.models.read_float_basin_ncol(ruta_in,record, cu.ncells, 5)
+        #Se organiza la lista con parametros necesarios para plotear los mapas con la funcion que sigue
+        ListaEjec.append([ruta_in, ruta_out_png, cu, v, l])
+
+    #Ejecuta los plots
+    if len(ListaEjec) > 15:
+        Nprocess = 15
+    else:
+        Nprocess = len(ListaEjec)
+    p = Pool(processes = Nprocess)
+    p.map(Plot_Hsim, ListaEjec)
+    p.close()
+
+def Plot_SlidesSim(Lista,verbose=True):
+    # #Plots de Parametrizaciones
+    # bins=4
+    # try:
+    # 	ticks_vec=np.arange(0,VarToPlot.max()+1,int(VarToPlot.max())/bins)
+    # except:
+    # 	ticks_vec=np.arange(0,3.5,0.5)
     
-#FUNCIONES NO USADAS
+    cu=Lista[2]
+    VarToPlot=Lista[-2]
+    if Lista[-1] != '999':
+        Coord,ax=cu.Plot_basinClean(VarToPlot,#show_cbar=True,
+                                    ruta=Lista[1],
+                                    cmap = pl.get_cmap('viridis',3),
+                                    show=False,figsize = (30,15))                                    
+                                #se configura los ticks del colorbar para que aparezcan siempre la misma cantidad y del mismo tamano
+                                # cbar_ticks=ticks_vec,cbar_ticklabels=ticks_vec,cbar_ticksize=16,									
+        #ax.set_title('Slides Map Par'+Lista[-1]+' '+date, fontsize=16 )
+        # pl.suptitle('Slides Map Par'+Lista[-1]+' '+date, fontsize=18, x=0.5, y=0.09)		
+        # ax.figure.savefig(Lista[1],bbox_inches='tight')
+    #Plot de mapa acumulado de deslizamientos en todas las Parametrizaciones
+    else:
+        Coord,ax=cu.Plot_basinClean(VarToPlot,#show_cbar=True,
+                                    cmap = pl.get_cmap('viridis',3),
+                                    ruta=Lista[1],
+                                    show=False,figsize = (30,15))                                    
+                            #se configura los ticks del colorbar para que aparezcan siempre la misma cantidad y del mismo tamano
+                            #~ cbar_ticks=ticks_vec,cbar_ticklabels=ticks_vec,cbar_ticksize=16,
+        #ax.set_title('Slides Map AcumPars '+date, fontsize=16 )
+        #~ pl.suptitle('Slides Map AcumPars '+date, fontsize=18, x=0.5, y=0.09)
+        #~ ax.figure.savefig(Lista[1],bbox_inches='tight')
+
+    #dice lo que hace
+    if verbose:
+        print 'Aviso: Plot de Deslizamientos para '+Lista[-1]+' generado.'
+
+        
+def Graph_Slides(date,cuenca,ruta_in,ruta_out,ListPlotVar,coord=True,verbose=True):
+    #Lectura de cuenca y variables
+    cu = cuenca
+    wmf.models.slide_allocate(cu.ncells, 10)
+    #Se marcan con 1 las celdas incondicionalmente inestables.
+    R = np.copy(wmf.models.sl_riskvector)
+    R1 = np.zeros(cu.ncells)
+    pos_ever=np.where(R==2)[1]
+    R1[pos_ever] = 1
+
+    #construye las listas para plotear en paralelo para cada parametrizacion
+    #Ademas se acumula el numero de celdas acumuladas de todas las parametrizaciones.
+    ListaEjec = []; Vsum = np.zeros(cu.ncells)
+
+    for l in range(0,len(ListPlotVar)):
+        #Mira la ruta del folder y si no existe la crea
+        ruta_folder = ruta_out+ListPlotVar[l]+'/'
+        Esta = glob.glob(ruta_folder)
+        if len(Esta) == 0:
+            os.system('mkdir '+ruta_folder)
+        #Obtiene las rutas de los archivos de salida
+        ruta_out_png = ruta_folder+'Slides'+ListPlotVar[l]+'_'+date+'.png'
+        #Lee los binarios de deslizamientos para la cuenca, para cada parametrizacion
+        v,r = wmf.models.read_int_basin(ruta_in,l+1,cu.ncells)
+        #Se marcan las celdas simuladas con 2.
+        #Si no hay celdas simuladas, deslizamos una para no alterar la escala de colores.
+        if v.max()==0:
+            v[0]=2
+        else:
+            v[v==1]=2
+        #se suman las celdas siempre inestables con las simuladas
+        map1 = R1 + v
+        # se  sesga el max a 2 para que se vean bien las celdas simuladas
+        map1[map1>2] = 2
+        #Se organiza la lista con parametros necesarios para plotear los mapas con la funcion que sigue
+        ListaEjec.append([ruta_in, ruta_out_png, cu, map1, ListPlotVar[l]])
+        #Se van acumulando las celdas simuladas en cada parametrizacion
+        Vsum += v
+    #Si marcan las celdas siempre inestables y se sesga a 2 las celdas mayores que 2 para no alterar escala de color.
+    Vsum[pos_ever]=1
+    Vsum[Vsum>2]=2
+    #si no hay celdas deslizadas, deslizamos una para no alterar la escala de colores.
+    if Vsum.max()==1:
+        Vsum[0]=2
+    else:
+        pass
+
+    ###Se agrega el mapa de celdas acumuladas entre los que se van a plotear desde la info en ListaEjec
+    #Obtiene las rutas de los archivos de salida
+    #Mira la ruta del folder y si no existe la crea
+    ruta_folder = ruta_out+'ParsAcum/'
+    Esta = glob.glob(ruta_folder)
+    if len(Esta) == 0:
+        os.system('mkdir '+ruta_folder)
+    ruta_out_png = ruta_folder+'SlidesParsAcum_'+date+'.png'
+    #Se organiza la lista con parametros necesarios para plotear los mapas con la funcion que sigue
+    ListaEjec.append([ruta_in, ruta_out_png, cu, Vsum, '999'])
+
+    #Ejecuta los plots
+    if len(ListaEjec) > 15:
+        Nprocess = 15
+    else:
+        Nprocess = len(ListaEjec)
+    p = Pool(processes = Nprocess)
+    p.map(Plot_SlidesSim, ListaEjec)
+    p.close()
+
+    #Guarda archuivo con coordenadas - por defecto es false, cuando se cambie revisar Coord.
+    # if coord:
+    #     f = open(ListaEjec[0][2], 'w')
+    #     for t,i in zip(['Left', 'Right', 'Bottom', 'Top'], Coord):
+    #         f.write('%s, \t %.4f \n' % (t,i))
+    #     f.close()
+    
 
 ########################################################################
 ########################################################################
@@ -1358,10 +1639,6 @@ def Model_Update_Store(date,rutaRain,ruta_rain_hist,ruta_rain_temp,ruta_sto,ruta
 ########################################################################
 
 #FUNCIONES FUERA DE alarmas.py O CODIGOS.
-# 'Model_Update_Store.py '
-# 'Graph_StreamFlow_map.py '
-# 'Graph_Moisture_map.py '
-# 'Graph_Slides_map.py '
 ########################################################################
 # FUNCIONES PARA OBTENER RUTAS 
 
@@ -1457,16 +1734,16 @@ def model_get_constStorage(RutesList, ncells):
         Storage[i] = Cs
     return Storage.astype(float)
 
-def model_update_norain():
-    print 'no rain'
+# def model_update_norain():
+#     print 'no rain'
 
-def model_update_norain_next():
-    print 'no next'
+# def model_update_norain_next():
+#     print 'no next'
 
-def model_update_norain_last(RainRute, Hours):
-    # Lee el archivo de lluvia 
+# def model_update_norain_last(RainRute, Hours):
+#     # Lee el archivo de lluvia 
 
-    print 'no last'
+#     print 'no last'
 
 def model_def_rutes(ruteStore, ruteStoreHist):
     ruta_store = ruteStore
