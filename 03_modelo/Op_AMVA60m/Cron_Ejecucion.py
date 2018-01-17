@@ -11,7 +11,9 @@ import alarmas as al
 import glob 
 import time
 import pylab as pl
-# import json
+import json
+import warnings
+warnings.filterwarnings('ignore')
 
 # Texto Fecha: el texto de fecha que se usa para guardar algunos archivos de figuras.
 date = dt.datetime.now()
