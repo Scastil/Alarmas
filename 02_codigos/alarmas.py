@@ -166,6 +166,7 @@ def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umb
         Stra = np.zeros(cuAMVA.ncells, dtype = int)
         try:
             for c,p in enumerate(pos):
+                print 'way 11111'
                 #Lee la imagen de radar para esa fecha
                 g = netCDF4.Dataset(ListRutas[p])
                 RadProp = [g.ncols, g.nrows, g.xll, g.yll, g.dx, g.dx]                        
@@ -189,6 +190,7 @@ def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umb
                 #Cierra el netCDF
                 g.close()
         except Exception, e:
+            print 'way 22222'
             rvec = np.zeros(cuAMVA.ncells)
             if save_escenarios:
                 rhigh = np.zeros(cuAMVA.ncells)
@@ -255,6 +257,38 @@ def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umb
 # Funciones de ejecucion del modelo
 #----------------------------------
 #----------------------------------
+
+def model_warper(L,verbose=True):
+    ''' # Ejecuta directamente el modelo hidrologico de forma operacional para cada paso del tiempo y la proxima media hora,
+        para esto: lee el binario de lluvia actual y la extrapolacion, si se programa de tal manera actualiza las CI., corre 
+        y genera un archivo con el dataframe de la simulacon de Q en cada nodo para cada paso de tiempo y los binarios del
+        estado final de almacenamiento de los tanques (.StObin y .StOhdr) que leera en la proxima ejecucion. Ademas corre y
+        genera archivos .bin y .hdr de las celdas deslizadas.
+        # Funcion operacional que solo se ejecuta desde la funcion Model_Ejec de alarmas.py.
+        # Argumentos:
+        -L= lista con tantas listas dentro como numero de parametrizaciones se quieran correr. Dentro debe tener en orden:
+        los argumentos de la funcion cu.run_shia(), el nombre de la par. y las rutas de los archivos Ssim y Shist.
+        La funcion Model_Ejec se encarga de crear las listas con todo lo necesario para las ejecucion model_warper().
+    '''
+    #Ejecucion del modelo
+    cu=L[11];Rain=L[12];posControl=L[13]
+    Res = cu.run_shia(L[1],L[2],L[3],L[4], 
+        StorageLoc = L[5], ruta_storage=L[9], kinematicN=12,QsimDataFrame=False)
+    #Escribe resultados 
+    rutaqsim = L[6]+ L[7] +'_'+L[0].split(' ')[-1]+'.json'
+    Qsim = pd.DataFrame(Res['Qsim'][1:].T, 
+        index=Rain.index, 
+        columns=posControl)
+    Qsim.to_json(rutaqsim)
+    #Actualiza historico de caudales simulados de la par. asociada.
+    rutaqhist = L[8]+ rutaqsim.split('/')[-1].split('.')[0]+'hist.'+rutaqsim.split('/')[-1].split('.')[-1]
+    model_write_qhist(rutaqsim,rutaqhist)
+    #Se actualizan los historicos de humedad de la parametrizacion asociada.
+    model_write_Stohist(L[9],L[10])
+    #imprime que ya ejecuto
+    if verbose:
+        print L[0]+' ejecutado'
+    return Res
 
 def Model_Ejec(ruta_out_rain,cuenca,rutaConfig,verbose=True):
     ''' #Setea las ejecuciones del modelo hidrologico con lo dispuesto  en el configfile para cada paso del tiempo.
@@ -382,38 +416,6 @@ def Model_Ejec(ruta_out_rain,cuenca,rutaConfig,verbose=True):
             rec = rec+1
             wmf.models.write_int_basin(ruta_out_slides, R[c]['Slides_Map'],rec,cu.ncells,1)
     f.close()    
-     
-def model_warper(L,verbose=True):
-    ''' # Ejecuta directamente el modelo hidrologico de forma operacional para cada paso del tiempo y la proxima media hora,
-        para esto: lee el binario de lluvia actual y la extrapolacion, si se programa de tal manera actualiza las CI., corre 
-        y genera un archivo con el dataframe de la simulacon de Q en cada nodo para cada paso de tiempo y los binarios del
-        estado final de almacenamiento de los tanques (.StObin y .StOhdr) que leera en la proxima ejecucion. Ademas corre y
-        genera archivos .bin y .hdr de las celdas deslizadas.
-        # Funcion operacional que solo se ejecuta desde la funcion Model_Ejec de alarmas.py.
-        # Argumentos:
-        -L= lista con tantas listas dentro como numero de parametrizaciones se quieran correr. Dentro debe tener en orden:
-        los argumentos de la funcion cu.run_shia(), el nombre de la par. y las rutas de los archivos Ssim y Shist.
-        La funcion Model_Ejec se encarga de crear las listas con todo lo necesario para las ejecucion model_warper().
-    '''
-    #Ejecucion del modelo
-    cu=L[11];Rain=L[12];posControl=L[13]
-    Res = cu.run_shia(L[1],L[2],L[3],L[4], 
-        StorageLoc = L[5], ruta_storage=L[6], kinematicN=12,QsimDataFrame=False)
-    #Escribe resultados 
-    rutaqsim = L[6]+ L[7] +'_'+L[0].split(' ')[-1]+'.json'
-    Qsim = pd.DataFrame(Res['Qsim'][1:].T, 
-        index=Rain.index, 
-        columns=posControl)
-    Qsim.to_json(rutaqsim)
-    #Actualiza historico de caudales simulados de la par. asociada.
-    rutaqhist = L[8]+ rutaqsim.split('/')[-1].split('.')[0]+'hist.'+rutaqsim.split('/')[-1].split('.')[-1]
-    model_write_qhist(rutaqsim,rutaqhist)
-    #Se actualizan los historicos de humedad de la parametrizacion asociada.
-    model_write_Stohist(L[9],L[10])
-    #imprime que ya ejecuto
-    if verbose:
-        print L[0]+' ejecutado'
-    return Res
 
 #-------------------------------
 #Funciones de Model_Update_Store
@@ -1408,10 +1410,10 @@ def Genera_json(rutaQhist,rutaQsim,ruta_out,verbose=True):
         Dict.update({str(n):{}})
         #Qsim en la pos 1.
         Dict[str(n)].update({'Qactual': float('%.3f' % Qsim[n][0])})
-        Dict[str(n)].update({'Qmax_ult24h': float('%.3f' % Qhist[n][-288:].max())})
+        # Dict[str(n)].update({'Qmax_ult24h': float('%.3f' % Qhist[n][-288:].max())})
         Dict[str(n)].update({'Qmax_next1h': float('%.3f' % Qsim[n].max())})
         fecha.update({'FechaActual':Qsim[n].index[0].strftime('%Y-%m-%d-%H:%M')})
-        fecha.update({'Fecha_max_ult24h':Qhist[n][-288:].argmax().strftime('%Y-%m-%d-%H:%M')})
+        # fecha.update({'Fecha_max_ult24h':Qhist[n][-288:].argmax().strftime('%Y-%m-%d-%H:%M')})
         fecha.update({'Fecha_max_next1h':Qsim[n].argmax().strftime('%Y-%m-%d-%H:%M')})
     superDict.update({'Fechas':fecha})
     superDict.update({'Q':Dict})
@@ -1535,18 +1537,18 @@ def model_write_qhist(rutaQsim,rutaQhist):
     #Actualiza Qhist con Qactual.
     try:
         Qhist=Qhist.append(Qactual.iloc[[0]])#.sort_index(axis=1))
+        #borra index repetidos, si los hay - la idea es que no haya pero si los hay no funciona el df.reindex
+        # Qhist=Qhist.drop_duplicates()
+        #Crea el index que debe tener la serie con todos los datos
+        rngindex=pd.date_range(Qhist.index[0],Qhist.index[-1],freq='5min')
+        #Si hay faltantes los llena, si no deja igual el df. Esto solo funciona cuando dejamos el cron operacional y el 'freq' es exactamente 5 min.
+        Qhist=Qhist.reindex(rngindex)
+        #Guarda el archivo historico 
+        Qhist.to_json(rutaQhist)
+        # Aviso
+        print 'Aviso: Se ha actualizado el archivo de Qsim_historicos de: '+rutaQhist
     except:
         print 'Aviso: no se esta actualizando Qhist en: '+rutaQhist
-    # #borra index repetidos, si los hay - la idea es que no haya pero si los hay no funciona el df.reindex
-    Qhist=Qhist.drop_duplicates()
-    #Crea el index que debe tener la serie con todos los datos
-    rngindex=pd.date_range(Qhist.index[0],Qhist.index[-1],freq='5min')
-    #Si hay faltantes los llena, si no deja igual el df. Esto solo funciona cuando dejamos el cron operacional y el 'freq' es exactamente 5 min.
-    Qhist=Qhist.reindex(rngindex)
-    #Guarda el archivo historico 
-    Qhist.to_json(rutaQhist)
-    # Aviso
-    print 'Aviso: Se ha actualizado el archivo de Qsim_historicos de: '+rutaQhist
 
 def model_write_Stohist(ruta_Ssim,ruta_Shist):
     ''' #Actualiza el Ssimhist con el estado promedio de C.I. de cada tanque, copiandolo desde el .StOhdr a un json antes
@@ -1564,7 +1566,7 @@ def model_write_Stohist(ruta_Ssim,ruta_Shist):
     #Actualiza
     Shist=Shist.append(Sactual.iloc[[0]])
     #borra index repetidos, si los hay - la idea es que no haya pero si los hay no funciona el df.reindex
-    Shist=Shist.drop_duplicates()
+    # Shist=Shist.drop_duplicates()
     # Crea el index que debe tener la serie con todos los datos
     rngindex=pd.date_range(Shist.index[0],Shist.index[-1],freq='5min')
     #Si hay faltantes los llena, si no deja igual el df. Esto solo funciona cuando dejamos el cron operacional y el 'freq' es exactamente 5 min.

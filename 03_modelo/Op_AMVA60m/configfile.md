@@ -130,7 +130,7 @@ para alguno de los casos presentados en la tabla:
 
 |id     | Nombre                 | Ultima Actualizacion |
 |:-----:|:-----------------------|:--------------------:|
-| -t 001|CuBarbosa_001_001.StObin|2018-01-17-10:27|
+| -t 001|CuBarbosa_001_001.StObin|2018-01-19-16:30|
 
 
 ___

@@ -19,26 +19,13 @@ import netCDF4
 import textwrap
 from multiprocessing import Pool
 
-import warnings
-warnings.filterwarnings('ignore')
-
-# ########################################################################
-# # VARIABLES GLOBALES 
-
-# ruta_store = None
-# ruta_store_bck = None
-
 #Nota: las funciones operacionales se ejecutan desde otro .py donde ya se leen sus argumentos. No lee configfile. No cargan simubasin.
 # las funciones no operacionales se ejecutan esporadicamente, por tanto leen el configfile para obtener argumentos, y cargan simubasin.
 # las funciones base son las que abren directamente el configfile y lidean con rutas.
 
-
-########################################################################
-########################################################################
-########################################################################
-########################################################################
-
-#FUNCIONES USADAS
+#---------------
+#Funciones base.
+#---------------
 
 def get_rutesList(rutas):
     ''' Abre el archivo de texto en la ruta: rutas, devuelve una lista de las lineas de ese archivo.
@@ -65,508 +52,15 @@ def get_ruta(RutesList, key):
     else:
         return 'Aviso: no existe linea con el key especificado'
 
-def Graph_AcumRain(fechaI,fechaF,cuenca,rutaRain,rutaFigura,vmin=0,vmax=100,verbose=True):
-    ''' Genera grafica de acumulado de radar para un periodo especificado, lo plotea y lo guarda en .png
-        - Si hay lluvia en el periodo definido devuelve 1 si no 0.
-        Funcion operacional.
-        #Argumentos
-        fechaI: string, fecha de inicio del periodo a acumular.
-        fechaF: string, fecha final del periodo a acumular.
-        cuenca: string, ruta del .nc de la cuenca sobre la cual acumular, debe ser la misma de simulacion.
-        rutaRain: string, ruta con los campos de radar historicos generados para esa cuenca.
-        rutaFigura: string, ruta .png donde generar la imagen de acumulado.
-        vmin: float o int, valor minimo para pintar los pixeles con el valor acumulado. Default = 0
-        vmax: float o int, valor m para pintar los pixeles con el valor acumulado. Default= 100
-        verbose: boolean, condicional para que devuelva los prints de la ejecucion. Default= True.
-        #Falta poner ventanas mas grandes de pronostico de lluvia ya que el calentamiento con las par y CI actuales
-        se toma unos 25 pasos.
-    '''
-    #Se lee la informacion
-    rutebin, rutehdr = wmf.__Add_hdr_bin_2route__(rutaRain)
-    cu = cuenca
-    DictRain = wmf.read_rain_struct(rutehdr)
-    R = DictRain[u' Record']
+#-----------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------------
+#Funciones operacionales
+#-----------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------------
 
-    #Se cuadran las fechas para que casen con las de los archivos de radar.
-
-    #Se obtienen las fechas con minutos en 00 o 05.
-    ####FechaF######
-    #Obtiene las fechas por dias
-    fecha_f = pd.to_datetime(fechaF)
-    fecha_f = fecha_f - pd.Timedelta(str(fecha_f.second)+' seconds')
-    fecha_f = fecha_f - pd.Timedelta(str(fecha_f.microsecond)+' microsecond')
-    #corrige las fechas
-    cont = 0
-    while fecha_f.minute % 5 <>0 and cont<10:
-        fecha_f = fecha_f - pd.Timedelta('1 minutes')
-        cont+=1
-
-    ####FechaI######
-    #Obtiene las fechas por dias
-    fecha_i = pd.to_datetime(fechaI)
-    fecha_i = fecha_i - pd.Timedelta(str(fecha_f.second)+' seconds')
-    fecha_i = fecha_i - pd.Timedelta(str(fecha_f.microsecond)+' microsecond')
-    #corrige las fechas
-    cont = 0
-    while fecha_i.minute % 5 <>0 and cont<10:
-        fecha_i = fecha_i - pd.Timedelta('1 minutes')
-        cont+=1
-
-    #Evalua que las fechas solicitadas existan, si no para aqui y no se grafica nada - if solo sirve para ensayos.. operacionalmente no debe hacer nada.
-    try:
-        lol=R[fecha_i:fecha_f]
-
-        #Ensaya si las fechas solicitadas cuentan con campo de radar en el binario historico, si no escoge la fecha anterior a esa. Este debe existir tambien, lo ideal es que se mantenga el dt, existan campos cada 5 min.
-        ####FechaF######
-        Flag = True
-        cont = 0
-        while Flag:
-            try:
-                lol = R.index.get_loc(fecha_f)
-                Flag = False
-            except:
-                print 'Aviso: no existe campo de lluvia para fecha_f en la serie entregada, se intenta buscar el de 5 min antes'
-                fecha_f = fecha_f - pd.Timedelta('5 minutes')
-            cont+=1
-            if cont>1:
-                Flag = False
-        ####FechaI######
-        Flag = True
-        cont = 0
-        while Flag:
-            try:
-                lol = R.index.get_loc(fecha_i)
-                Flag = False
-            except:
-                print 'Aviso: no existe campo de lluvia para fecha_i en la serie entregada, se intenta buscar el de 5 min antes'
-                fecha_i = fecha_i - pd.Timedelta('5 minutes')
-            cont+=1
-            if cont>1:
-                Flag = False
-
-        #Escoge pos de campos con lluvia dentro del periodo solicitado.
-        pos = R[fecha_i:fecha_f].values
-        pos = pos[pos <>1 ]
-
-        #si hay barridos para graficar
-        if len(pos)>0:
-            #-------
-            #Grafica
-            #-------
-            #Textos para la legenda
-            #~ lab = np.linspace(vmin, vmax, 4)
-            #~ texto = ['Bajo', 'Medio', 'Alto', 'Muy alto']
-            #~ labText = ['%dmm\n%s'%(i,j) for i,j in zip(lab, texto)]
-            #Acumula la lluvia para el periodo
-            Vsum = np.zeros(cu.ncells)
-            for i in pos:
-                v,r = wmf.models.read_int_basin(rutebin,i, cu.ncells)
-                v = v.astype(float); v = v/1000.0
-                Vsum+=v	
-            #Genera la figura 
-            c = cu.Plot_basinClean(Vsum, cmap = pl.get_cmap('viridis',10), 
-                vmin = vmin, vmax = vmax,#~ show_cbar=True,
-                #~ cbar_ticksize = 16,
-                #~ cbar_ticks= lab,
-                #~ cbar_ticklabels = labText,
-                #~ cbar_aspect = 17,
-                ruta = rutaFigura,
-                figsize = (10,12),show=False)
-            # c[1].set_title('Mapa Lluvia de Radar Acumulada', fontsize=16)
-            if verbose:
-                print 'Aviso: Se ha producido una grafica nueva con valores diferentes de cero en '+rutaFigura
-                print fecha_f - fecha_i
-            return 1
-
-        #si no hay barridos
-        else:
-            #-------
-            #Grafica
-            #-------
-            Vsum = np.zeros(cu.ncells)
-            c = cu.Plot_basinClean(Vsum, cmap = pl.get_cmap('viridis',10), 
-                vmin = vmin, vmax = vmax,#show_cbar=True,
-                #~ cbar_ticksize = 16,
-                #~ cbar_ticks= lab,
-                #~ cbar_ticklabels = labText,
-                #~ cbar_aspect = 17,
-                ruta = rutaFigura,
-                figsize = (10,12),show=False)
-            #~ c[1].set_title('Mapa Lluvia de Radar Acumulada', fontsize=16)
-            if verbose:
-                print 'Aviso: Se ha producido un campo sin lluvia en '+rutaFigura
-                print fecha_f - fecha_i
-            return 0
-    except:
-        #si no lo logra que no haga nada.
-        print 'Aviso: no se puede construir una serie porque las fechas solicitada no existen, no se genera png de acumulado de '+ str(fecha_f - fecha_i)
-        pass
-
-def Genera_json(rutaQhist,rutaQsim,ruta_out,verbose=True):
-    ''' #Actualiza, o crea si no existe, un .json para desplegar informacion de los caudales simulados en la pagina de SIATA.
-        Guarda: Q_actual (del archivo de la ultima corrida), 
-                Qmax_ult24h (del hist), Qmax_next1h (del archivo de la ultima corrida), 
-                FechaActual (index inicial del archivo de la ultima corrida), 
-                Fecha_max_ult24h (index del valor),
-                Fecha_max_next1h (index del valor).
-        #Funcion operacional.
-        #Argumentos:
-        rutaQhist: string, ruta de donde se lee el Qhist simulado de una parametrizacion.
-        rutaQsim: string, ruta de donde se lee el Qsim (de la ultima corrida) de una parametrizacion.
-        ruta_out: string, ruta donde se escribe el .json.
-        verbose: boolean, condicional para que devuelva los prints de la ejecucion. Default= True.
-    '''
-    #Carga los caudales simulados de la parametrizacionn escogida
-    #Qsim historico dataframe
-    Qhist = pd.read_json(rutaQhist)
-    #Qsim actual y next1hr dataframe
-    Qsim=pd.read_json(rutaQsim)
-    #Se toman los nodos desde Qsim
-    Nodos = Qsim.columns.values
-
-    #Genera el Diccionario con los caudales y sus fechas y escribe el json
-    superDict={}
-    fecha = {}
-    Dict = {}
-    for n in Nodos:
-        Dict.update({str(n):{}})
-        #Qsim en la pos 1.
-        Dict[str(n)].update({'Qactual': float('%.3f' % Qsim[n][0])})
-        Dict[str(n)].update({'Qmax_ult24h': float('%.3f' % Qhist[n][-288:].max())})
-        Dict[str(n)].update({'Qmax_next1h': float('%.3f' % Qsim[n].max())})
-        fecha.update({'FechaActual':Qsim[n].index[0].strftime('%Y-%m-%d-%H:%M')})
-        fecha.update({'Fecha_max_ult24h':Qhist[n][-288:].argmax().strftime('%Y-%m-%d-%H:%M')})
-        fecha.update({'Fecha_max_next1h':Qsim[n].argmax().strftime('%Y-%m-%d-%H:%M')})
-    superDict.update({'Fechas':fecha})
-    superDict.update({'Q':Dict})
-    esta=glob.glob(ruta_out)
-    if len(esta)==0:
-        os.system('mkdir '+ruta_out)
-    with open(ruta_out+'Qsim.json', 'w') as outfile:
-        json.dump(superDict, outfile)
-    if verbose:
-        print'Aviso: Se actualiza correctamente el .json'
-
-def GraphAnimationsAndDelLast(rutaFiguras,imagenpagina,nfiles=288,verbose=True):
-    ''' #Elimina imagenes generadas en la ruta definida si la cantidad sobre pasa el umbral 'nfiles'.
-        Genera animacion con las imagenes que se encuentran en la 'rutaFiguras'.
-        Si 'imagenpagina'=True, crea o sobreescribe copia de la ultima imagen aparte para el despligue en la pagina de siata.
-        #Funcion operacional.
-        #Argumentos:
-        rutaFiguras: string, ruta de la carpeta con las imagenes con que se quiere crear animacion, borrar o copiar ultima imagen.
-        imagenpagina: boolean, True si se quiere crear copia de la ultima imagen.
-        nfiles: int, numero de archivos limite a partir del cual borrar.
-        verbose: boolean, condicional para que devuelva los prints de la ejecucion. Default= True.
-        '''
-    #Lista las carpetas que coinciden con la ruta 
-    #si es LevelsGraphs, se lee lo de dentro porque es una sola que tiene varias cosas
-    if rutaFiguras.split('/')[-1] == 'LevelsGraphs':
-        Lista = glob.glob(rutaFiguras+'/*')
-    #si no es, se leen desde afuera porque hay varias par.
-    else:
-        Lista = glob.glob(rutaFiguras+'*')
-    #Itera sobre cada carpeta
-    for l in Lista:
-        # Organiza archivos
-        ListTemp = glob.glob(l+'/*')
-        ListTemp.sort()
-        # Borra lo viejo 
-        if len(ListTemp)>= nfiles:
-            for i in ListTemp[:-nfiles]:
-                os.system('rm '+i)
-            if verbose:
-                print 'Aviso: Se han dejado solo '+str(nfiles)+' elementos en '+l
-        else:
-            if verbose:
-                print 'Aviso: No hay suficientes archivos para borrar '+str(len(ListTemp))
-        #Se copia ultima imagen para la pagina
-        if imagenpagina:
-            # sino existe la ruta de la animacion la crea
-            rutaIpagina=l+'/imagenpagina/'
-            Otra= glob.glob(rutaIpagina)
-            if len(Otra) == 0:
-                os.system('mkdir '+rutaIpagina)
-            #copia la ultima imagen para sobreescribirla siempre con el mismo nombre
-            pngsort=[i[-3:] for i in ListTemp]
-            pngsort=np.array(pngsort)
-            pospng=np.where(pngsort=='png')[0]
-            try:
-                os.system('cp '+ListTemp[pospng[-1]]+' '+rutaIpagina+'imagenpagina.png')
-                print 'Aviso: Se copia ultima imagen para la pagina'
-            except:
-                pass
-        else:
-            pass
-#SE COMENTA LA GENERACION DE ANIMACIONES PORQUE LA PAGINA LO HACE BIEN, HAY QUE CAMBIAR LOS NOMBRES DE LOS ARCHIVOS PARA QUE ESTE FUNCIONE
-        # # Sino existe la ruta de la animacion la crea
-        # rutaAnimacion=l+'/animation/'
-        # Esta= glob.glob(rutaAnimacion)
-        # if len(Esta) == 0:
-        #     os.system('mkdir '+rutaAnimacion)
-        # # Crea la animacion
-        # os.system('convert -delay 10 -loop 0 '+l+'/*00.png '+rutaAnimacion+'animation24hr.gif ')
-        # print 'Aviso: Animacion generada en '+rutaAnimacion   
-
-def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,nodosim,codeest,mediah,ruta_outNsim,verbose=True):
-    ''' #Genera graficas para cada nodo en .png comparando Nsims y Nobs y los niveles de riesgo, calculando criterio de calibracion
-        Nash-Sutcliffe. Se obtiene Nsim a partir de Qsim, restando la media de Qsim y sumando la media historica de Qobs 'mediah'.
-        #Funcion operacional.
-        #Argumentos:
-        ruta_inQhist: string, ruta de donde se lee el Qhist simulado de una parametrizacion. 
-        ruta_inQsim: string, ruta de donde se lee el Qsim de una parametrizacion.
-        ruta_outLevelspng: string, ruta de la carpeta donde se guardan los .pngs.
-        ruta_out_rain: string, ruta de la carpeta de donde se leen los .hdr de los campos de radar de esa cuenca.
-        date: string, con la fecha y hora en la que se corre la imagen, esto para el nombre del .png.
-        nodosim: lista de int's de los nodos que corresponden con estaciones de nivel para comparar simulado.
-        codeest: lista de int's de los codigos de estaciones que corresponden con nodos de simulacion para comparar simulado.
-        mediah: lista de int's de las medias historicas de Nobs en las estaciones que corresponden con nodos de simulacion.
-        ruta_outNsim: string, ruta donde de la carpeta donde se guardan las series Nsim corregidas con Nobs.
-        verbose: boolean, condicional para que devuelva los prints de la ejecucion. Default= True.
-        #Nota: nodosim, codeest y mediah deben tener el mismo size ya que cada pos hace referencia a la misma estacion.
-    '''
-    #Se cambia formato de 
-    nodo_ests=np.array([int(nodo) for nodo in nodosim.split(',')])
-    code_ests=np.array([int(nodo) for nodo in codeest.split(',')])
-    media_hs=np.array([float(nodo) for nodo in mediah.split(',')])
-
-    #Se leen resultados de simulacion de todas las par. para todos los nodos.
-    #Leer ultima hora de historico Qsim para cada par.
-    rutah=ruta_inQhist+'*'
-    readh=glob.glob(rutah)
-    #Leer las simulacion actual+extrapolacion
-    ruta1=ruta_inQsim+'_caudal/*'
-    read1=glob.glob(ruta1)
-    #Guarda series completas e hist para sacar Nash
-    Qhist=[];Qact=[]
-    for rqhist,rqsim in zip(np.sort(readh),np.sort(read1)):
-        if rqhist.endswith('.msg') and rqsim.endswith('.msg'):
-            #Q HIST
-            dfhist=pd.read_msgpack(rqhist)
-            # #crea index para poner nans en faltantes, si los hay.
-            # rngindex=pd.date_range(dfhist.index[0],dfhist.index[-1],freq='5min')
-            # dfhist=dfhist.reindex(rngindex)
-            #ultima hora, 12 pasos de 5 min.
-            qhist=dfhist[-12:]
-            #hist para sacar Nash, ultima hr del nodo de salida.
-            Qhist.append(qhist[nodo_ests[0]][-12:])
-            #Q ACT
-            dfsim=pd.read_msgpack(rqsim)
-            qEst=dfsim
-            #ult hr+ extrapolacion
-            Qact.append(qhist.append(qEst))
-
-    for nodo,code,media in zip(nodo_ests,code_ests,media_hs):
-        #Lee ruta del archivo a guardar, si no existe se crea
-        ruta_folder = ruta_outLevelspng+'/'+str(nodo)+'/'
-        Esta = glob.glob(ruta_folder)
-        if len(Esta) == 0:
-            os.system('mkdir '+ruta_folder)
-        ruta_out_png = ruta_folder+'LevelsSimNodo'+str(nodo)+'_'+date+'.png' 
-
-        #series
-        otra = glob.glob(ruta_outNsim)
-        if len(otra) == 0:
-            os.system('mkdir '+ruta_outNsim)
-        #Obtiene las ruta de archivo de salida
-        ruta_out_serie = ruta_outNsim+'NSim'+str(code)+'.msg'
-
-        #-------------------------------------------------------------------------------------------------------
-        #Grafica comparativa de niveles, con escala de colores y backgroud de siata.
-        #------------------------------------------------------------------------------------------------------
-        fig= pl.figure(figsize=(12,9))
-        ax= fig.add_subplot(111)    
-
-        #Grafica de niveles simulados.
-        #Colormap
-        #-------------------------------------------------------------------------------------------------------
-        parameters = np.linspace(0,len(Qact),len(Qact))
-        # norm is a class which, when called, can normalize data into the [0.0, 1.0] interval.
-        norm = matplotlib.colors.Normalize(
-            vmin=np.min(parameters),
-            vmax=np.max(parameters))
-        #choose a colormap
-        c_m =pl.cm.Spectral#nipy_spectral#winter#autumn#summer#PuBuGn
-        # create a ScalarMappable and initialize a data structure
-        s_m = pl.cm.ScalarMappable(cmap=c_m, norm=norm)
-        s_m.set_array([])
-        #------------------------------------------------------------------------------------------------------
-
-    #     # Si el nodo tiene estacion instalada
-    #     if  nodo in nodo_est:
-
-        #Lluvia
-        ruta_hdrp1=ruta_out_rain + 'Lluvia_historica.hdr'
-        ruta_hdrp2=ruta_out_rain + 'Lluvia_actual.hdr'
-        Phist=wmf.read_mean_rain(ruta_hdrp1,100000000000,0)
-        Pextrapol=wmf.read_mean_rain(ruta_hdrp2,100000000000,0) 
-
-        #-------------------------------------------------------------------------------------------------------
-        #Consulta a base de datos: Nobs y Ns de alerta'
-        #-------------------------------------------------------------------------------------------------------
-        #Se usa las fechas de una serie sim para consultar en bd.
-        serieN=Qact[0]
-        FI=serieN.index.strftime('%Y-%m-%d')[0]
-        FF=serieN.index.strftime('%Y-%m-%d')[-1]
-        HI=serieN.index[0].strftime('%H:%M')
-        HF=serieN.index[-1].strftime('%H:%M')
-        # coneccion a bd con usuario operacional
-        host   = '192.168.1.74'
-        user   = 'siata_Oper'
-        passwd = 'si@t@64512_operacional'
-        bd     = 'siata'
-        #Consulta a tabla estaciones
-        Estaciones="SELECT Codigo,Nombreestacion, offsetN,N,action_level,minor_flooding,moderate_flooding,major_flooding  FROM estaciones WHERE codigo=("+str(code)+")"
-        dbconn = MySQLdb.connect(host, user,passwd,bd)
-        db_cursor = dbconn.cursor()
-        db_cursor.execute(Estaciones)
-        result = np.array(db_cursor.fetchall())
-        #definicion de niveles de alerta y demas.
-        nombreest=result[0][1] 
-        n1=float(result[0][4])
-        n2=float(result[0][5])
-        n3=float(result[0][6])
-        n4=float(result[0][7])
-        #definicion de tipo N para consultar campo.
-        tipo=int(result[0][3])
-        if tipo == 1:#radar
-            niv='ni'
-        elif tipo == 0:#ultrasonido
-            niv='pr'
-        #Consulta a tabla datos
-        sql_datos ="SELECT DATE_FORMAT(fecha,'%Y-%m-%d'), DATE_FORMAT(hora, '%H:%i:%s'), (" +str(result[0][2])+"-"+niv+"), calidad FROM datos WHERE cliente = ("+str(code)+") and fecha between '"+FI+"' and '"+FF+"' and hora between '"+HI+"' and '"+HF+"'"
-        dbconn = MySQLdb.connect(host, user,passwd,bd)
-        db_cursor = dbconn.cursor()
-        db_cursor.execute(sql_datos)
-        result_data = np.array(db_cursor.fetchall())
-        data = pd.DataFrame(result_data)
-
-        #Se organizan consulta en serie de tiempo.
-
-        fe=[data[0][i]+'-'+data[1][i] for i in range(len(data))]; fe=np.array(fe)
-        nobs=[float(data[2][i]) for i in range(len(data))];nobs=np.array(nobs)
-        calidad=[int(data[3][i]) for i in range(len(data))];calidad=np.array(calidad)
-        #se encuentran y eliminan los datos con datetime malos.
-        badpos=[];dates=[]
-        for i,date in enumerate(fe):
-            try:
-                dates.append(dt.datetime.strptime(date,'%Y-%m-%d-%H:%M:%S'))
-            except:
-                badpos.append(i)
-        nobs=np.delete(nobs,badpos)
-        calidad=np.delete(calidad,badpos)
-        # serie
-        Nobs=pd.Series(nobs,index=dates)
-
-        #Se corrgie Nobs por calidad
-        try:
-            Nobs[np.where((calidad!=1)&(calidad!=2))[0]]=np.nan
-        except:
-            pass
-        # Nobs[Nobs>float(offset)]=np.nan
-        Nobs[Nobs>600.0]=np.nan
-
-        #Calidad
-        grad=50
-        for k in range(1,(len(Nobs)-1)):
-            d= Nobs[k]
-            c= Nobs[k-1]
-            e= Nobs[k+1]
-            if abs(d-c)>grad and abs(d-e)>grad:
-                Nobs[k]=np.nan
-
-        #Poner Qsims en magnitud de Nobservados.
-        Nnodo=[]
-        for sim in Qact:
-            serie_nodo=sim[nodo]
-            Nsim=serie_nodo-serie_nodo.mean()+media
-            Nnodo.append(Nsim)
-        # Se guardan los Nsim para el programa de Mario
-        Nsims=pd.DataFrame(np.array(Nnodo).T, index=Nnodo[0].index)
-        Nsims.to_msgpack(ruta_out_serie)
-
-        # Cosas para graficar niveles de riesgo.
-        ylim4=n4+(n4*0.2)
-        levels=[n1,n2,n3,n4,ylim4]
-        lnames=['N1','N2', 'N3', 'N4']
-        lcolors=['g','orange','orangered','indigo']
-
-        #plot
-        for i in range(0,len(levels)):
-            try:
-                ax.fill_between(x=[Nobs.index[0],serieN.index[-1]], 
-                                y1=[levels[i],levels[i]],
-                                y2=[levels[i+1],levels[i+1]], 
-                                color = lcolors[i], 
-                                alpha = 0.22,
-                                label=lnames[i])
-            except:
-                pass
-
-
-        #PLOT
-        for i,parameter in zip(np.arange(0,len(Nnodo)),parameters):
-            #NASH
-            nash=wmf.__eval_nash__(Nobs,Nnodo[i])
-            ax.plot(Nnodo[i],lw=2.5,linestyle='--', label='P0'+str(i+1)+'- NS:%.2f'%(nash),color=s_m.to_rgba(parameter))
-        #Text ans ticks color.
-        backcolor='dimgray'  
-        #Obs
-        ax.plot(Nobs,c='k',lw=3.5, label='Nobs')
-        ax.set_title('Est. %s. %s ___ Fecha: %s'%(code,nombreest,serieN.index.strftime('%Y-%m-%d')[0]), fontsize=17,color=backcolor)
-        ax.set_ylabel('Nivel  $[cm]$', fontsize=17,color=backcolor)
-        ax.axvline(x=Nobs.index[-1],lw=2,color='gray',label='Now')
-
-        # Second axis
-        #plot
-        axAX=pl.gca()
-        ax2=ax.twinx()
-        ax2AX=pl.gca()
-        try:
-            #Mean rainfall
-            # Busca en Qact la primera pos del obs.
-            p1=Phist[Phist.index.get_loc(Qact[0].index[0]):]
-            # Busca en Pextrapol la ultima  pos del Pobs
-            p2=Pextrapol[Pextrapol.index.get_loc(Phist.index[-1])+1:]
-            P=p1.append(p2)
-            #Se pasa a mm/h
-            P=P*12.0
-
-            #resto del plot
-            ax2.fill_between(P.index,0,P,alpha=0.25,color='dodgerblue',lw=0)
-            #limites
-            ax2AX.set_ylim((0,20)[::-1]) 
-        except:
-            print 'Aviso: No se grafica Lluvia promedio, no exiten campos para la fecha en el historico'
-
-        #Formato  resto de grafica.
-        ax.tick_params(labelsize=14)
-        ax.grid()
-        ax.autoscale(enable=True, axis='both', tight=True)
-        #setting default color of ticks and edges
-        ax.tick_params(color=backcolor, labelcolor=backcolor)
-        for spine in ax.spines.values():
-            spine.set_edgecolor('gray')
-        #color of legend text
-        leg = ax.legend(ncol=3,loc=(0.26,-0.255),fontsize=12)
-        for text in leg.get_texts():
-            pl.setp(text, color = 'dimgray')
-
-        #ylim para la grafica respecto a Nobs.
-        ylim=n4+(n4*0.05)
-        y_lim=Nobs.mean()*0.5
-        ax.set_ylim(y_lim,ylim)
-
-        #Formato resto de grafica - Second axis
-        ax2.set_ylabel(u'Precipitacion media - cuenca [$mm$]',size=17,color=backcolor)    
-        ax2.tick_params(labelsize=14)
-        ax2.tick_params(color=backcolor, labelcolor=backcolor)
-        for spine in ax2.spines.values():
-            spine.set_edgecolor('gray')
-        #Se guarda la figura.
-        ax.figure.savefig(ruta_out_png,bbox_inches='tight')
-
-    if verbose:
-        print 'Aviso: Plot de niveles generado en '+ruta_out_png
+#-------------------------------
+#Funcion de generacion de lluvia
+#-------------------------------
 
 def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umbral=0.005,noextrapol=False,old=False,
                         save_class=False,save_escenarios=False,verbose=True,super_verbose=False):
@@ -643,11 +137,6 @@ def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umb
             else:
                     pos1 = pos2
             PosDates.append(pos2)
-
-
-    #---------------------------------------------------------------------------
-    #CARGADO DE LA CUENCA SOBRE LA CUAL SE REALIZA EL TRABAJO DE OBTENER CAMPOS
-    #---------------------------------------------------------------------------
     
     #Carga la cuenca del AMVA
     cuAMVA = cuenca# wmf.SimuBasin(rute = cuenca)
@@ -677,6 +166,7 @@ def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umb
         Stra = np.zeros(cuAMVA.ncells, dtype = int)
         try:
             for c,p in enumerate(pos):
+                print 'way 11111'
                 #Lee la imagen de radar para esa fecha
                 g = netCDF4.Dataset(ListRutas[p])
                 RadProp = [g.ncols, g.nrows, g.xll, g.yll, g.dx, g.dx]                        
@@ -700,6 +190,7 @@ def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umb
                 #Cierra el netCDF
                 g.close()
         except Exception, e:
+            print 'way 22222'
             rvec = np.zeros(cuAMVA.ncells)
             if save_escenarios:
                 rhigh = np.zeros(cuAMVA.ncells)
@@ -760,147 +251,12 @@ def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umb
     if verbose:
             print 'Encabezados de binarios de cuenca cerrados y listos, campos generados en: '
             print rutaRes+'\n'
-    
-def model_write_rutesHists(rutaConfig,Qhist=True,Shist=True):
-    ''' #Genera archivos vacios para cada parametrizacion cuando no existe historia o si esta quiere renovarse. 
-        Si se quiere dejar de crear rutas para alguno de los dos, se debe indicar False. e.g. Shist=False.
-        Genera un dataframe con la primera fila de un qsim, ssim.hdr cualquiera, resultado de simulacion de la cuenca de
-        interes; la ruta de este archivo debe estar indicado en el configfile.
-        #Funcion no operacinal.
-        #Argumentos:
-        -rutaConfig: string, ruta del configfile.
-        -Qhist: boolean, crear un Qhist. Default= True.
-        -Shist: boolean, crear un Shist. Default= True.
-    '''
 
-    ListConfig = get_rutesList(rutaConfig)
-
-    #Actualiza Qhist
-    if Qhist:
-        #se lee la ruta donde se va a escribir
-        ruta_qhist = get_ruta(ListConfig,'ruta_qsim_hist')
-        #se lee el archivo que se va a copiar
-        ruta_qsim = get_ruta(ListConfig,'ruta_qsim')
-        rutas_qsim=glob.glob(ruta_qsim+'*.json')
-        rutaqsim=rutas_qsim[0]
-        #se leen los archivos de todas las par para crear Qhist para cada una.
-        listrutas_qsim=np.sort(rutas_qsim)
-
-        for i in listrutas_qsim:
-            #Se lee el archivo Qsim de donde tomar la primera fila.
-            qsim=pd.read_json(rutaqsim)
-            Qh=qsim.iloc[[0]]
-            nameQhistfile=i.split('/')[-1].split('.')[0]+'hist.'+i.split('/')[-1].split('.')[-1]
-            #Pregunta si ya existe y si se quiere sobreescribir
-            try:
-                Lol = os.listdir(ruta_qhist)
-                pos = Lol.index(nameQhistfile)
-                flag = raw_input('Aviso: El archivo Qhist: '+nameQhistfile+' ya existe, desea sobre-escribirlo, perdera la historia de este!! (S o N): ')
-                if flag == 'S':
-                    flag = True
-                else:
-                    flag = False
-            except:
-                flag = True
-            #Guardado
-            if flag:
-                Qh.to_json(ruta_qhist+nameQhistfile)
-                print 'Aviso: Se crean los Qhist, el archivo Qsim usado para crear las rutas es: '+rutaqsim
-            else:
-                print 'Aviso: No se crean los Qhist'
-    else: 
-        print ' Aviso: No se crean archivos Qhist.'
-
-    #Actualiza Shist
-    if Shist:
-        ruta_shist = get_ruta(ListConfig,'ruta_almhist')
-        ruta_ssim = get_ruta(ListConfig,'ruta_almsim')
-        rutas_ssim=glob.glob(ruta_ssim+'*.StOhdr')
-        rutassim=rutas_ssim[0]
-        listrutas_ssim=np.sort(rutas_ssim)
-
-        for j in listrutas_ssim:
-            #Se lee el archivo Qsim de donde tomar la primera fila.
-            ssim=pd.read_csv(j, header = 4, index_col = 5, parse_dates = True, usecols=(1,2,3,4,5,6))
-            Sh=ssim.iloc[[0]]
-            nameShistfile=j.split('/')[-1].split('.')[0]+'hist.'+i.split('/')[-1].split('.')[-1]
-            #Pregunta si ya existe y si se quiere sobreescribir
-            try:
-                Lold = os.listdir(ruta_shist)
-                pos = Lold.index(nameShistfile)
-                flag = raw_input('Aviso: El archivo Shist: '+nameShistfile+' ya existe, desea sobre-escribirlo, perdera la historia de este!! (S o N): ')
-                if flag == 'S':
-                    flag = True
-                else:
-                    flag = False
-            except:
-                flag = True
-            #Guardado
-            if flag:
-                Sh.to_json(ruta_shist+nameShistfile)
-                print 'Aviso: Se crean los Shist , el archivo Ssim usado para crear las rutas es: '+rutassim
-            else:
-                print 'Aviso: No se crean los Shist'
-    else: 
-        print ' Aviso: No se crean archivos S.'        
-
-def model_write_qhist(rutaQsim,rutaQhist):
-    ''' #Actualiza el archivo Qsimhist con el dataframe de la ultima ejecucion de la parametrizacion definida en las rutas de
-        entrada. Abre el archivo Qhist y Qsim y hace append del ultimo dato, usa df.reindex(...,freq='5min') para que la
-        historia quede organizada cronologicamente, por eso solo funciona si se ejecuta con una frecuencia con minuto = 5.
-        La actualizacion de qhist siempre va un paso atras que la de Shist porque el archivo Qsim que genera la ejecucion
-        empieza con un paso atras del que corre y el archivo Ssmim no, la actualizacion toma esa primera pos.
-        #Funcion operacional.
-        #Argumentos:
-        -rutaQsim= string, ruta del Qsim
-        -rutaQhist= string, ruta del Qhis
-    '''
-    ##Se actualizan los historicos de Qsim de la parametrizacion asociada.
-    #Lee el almacenamiento actual
-    Qactual = pd.read_json(rutaQsim)
-    #Lee el historico
-    Qhist = pd.read_json(rutaQhist)
-    #Actualiza Qhist con Qactual.
-    try:
-        Qhist=Qhist.append(Qactual.iloc[[0]])#.sort_index(axis=1))
-    except:
-        print 'Aviso: no se esta actualizando Qhist en: '+rutaQhist
-    # #borra index repetidos, si los hay - la idea es que no haya pero si los hay no funciona el df.reindex
-    Qhist=Qhist.drop_duplicates()
-    #Crea el index que debe tener la serie con todos los datos
-    rngindex=pd.date_range(Qhist.index[0],Qhist.index[-1],freq='5min')
-    #Si hay faltantes los llena, si no deja igual el df. Esto solo funciona cuando dejamos el cron operacional y el 'freq' es exactamente 5 min.
-    Qhist=Qhist.reindex(rngindex)
-    #Guarda el archivo historico 
-    Qhist.to_json(rutaQhist)
-    # Aviso
-    print 'Aviso: Se ha actualizado el archivo de Qsim_historicos de: '+rutaQhist
-
-def model_write_Stohist(ruta_Ssim,ruta_Shist):
-    ''' #Actualiza el Ssimhist con el estado promedio de C.I. de cada tanque, copiandolo desde el .StOhdr a un json antes
-        creado.Abre el archivo Shist y Ssim y hace append del ultimo dato, usa df.reindex(...,freq='5min') para que la
-        historia quede organizada cronologicamente, por eso solo funciona si se ejecuta con una frecuencia con minuto = 5.
-        #Funcion operacional.
-        -ruta_Ssim: string, ruta .hdr del archivo de condiciones antecedentes .StObin resultado de la simulacion.
-        -ruta_Shist: string, ruta .json del archivo Shist.
-    '''
-    ##Se actualizan los historicos de humedad de la parametrizacion asociada.
-    #Lee el almacenamiento actual
-    Sactual = pd.read_csv(ruta_Ssim[:-7]+'.StOhdr', header = 4, index_col = 5, parse_dates = True, usecols=(1,2,3,4,5,6))
-    #Lee el historico
-    Shist = pd.read_json(ruta_Shist)
-    #Actualiza
-    Shist=Shist.append(Sactual.iloc[[0]])
-    #borra index repetidos, si los hay - la idea es que no haya pero si los hay no funciona el df.reindex
-    Shist=Shist.drop_duplicates()
-    # Crea el index que debe tener la serie con todos los datos
-    rngindex=pd.date_range(Shist.index[0],Shist.index[-1],freq='5min')
-    #Si hay faltantes los llena, si no deja igual el df. Esto solo funciona cuando dejamos el cron operacional y el 'freq' es exactamente 5 min.
-    Shist=Shist.reindex(rngindex)
-
-    #guarda el archivo
-    Shist.to_json(ruta_Shist)
-    print 'Aviso: Se ha actualizado el archivo de Ssim_historicos de: '+ruta_Shist    
+#----------------------------------
+#----------------------------------
+# Funciones de ejecucion del modelo
+#----------------------------------
+#----------------------------------
 
 def model_warper(L,verbose=True):
     ''' # Ejecuta directamente el modelo hidrologico de forma operacional para cada paso del tiempo y la proxima media hora,
@@ -917,7 +273,7 @@ def model_warper(L,verbose=True):
     #Ejecucion del modelo
     cu=L[11];Rain=L[12];posControl=L[13]
     Res = cu.run_shia(L[1],L[2],L[3],L[4], 
-        StorageLoc = L[5], ruta_storage=L[6], kinematicN=12,QsimDataFrame=False)
+        StorageLoc = L[5], ruta_storage=L[9], kinematicN=12,QsimDataFrame=False)
     #Escribe resultados 
     rutaqsim = L[6]+ L[7] +'_'+L[0].split(' ')[-1]+'.json'
     Qsim = pd.DataFrame(Res['Qsim'][1:].T, 
@@ -1060,63 +416,10 @@ def Model_Ejec(ruta_out_rain,cuenca,rutaConfig,verbose=True):
             rec = rec+1
             wmf.models.write_int_basin(ruta_out_slides, R[c]['Slides_Map'],rec,cu.ncells,1)
     f.close()    
-    
-def Genera_riskvectorMap(rutaConfig,cuenca,figSZ):  
-    ''' #Genera un mapa en .png con el risk_vector, esta funcion no es de uso operacional.
-        Por lo que necesita leer directamente el ConfigFile.
-        #Funcion no operacional.
-        #Argumentos:
-        - rutaConfig= string, ruta del configfile.
-        - cuenca= string, ruta del .nc del simubasin de la cuenca.
-        - figSZ= lista, debe tener dos valores dentro de si, x -y del figsize del plot.
-    '''
-    #Lee el archivo de configuracion
-    ListConfig = get_rutesList(rutaConfig)
-    #Lectura de rutas de salida de la imagen
-    ruta_out = get_ruta(ListConfig,'ruta_map_riskvector')
 
-    #Lectura de cuenca 
-    cu = wmf.SimuBasin(rute=cuenca, SimSlides = True)
-    wmf.models.slide_allocate(cu.ncells, 10)
-    #Mapa risk vector.
-    R = wmf.models.sl_riskvector#np.copy(wmf.models.sl_riskvector)
-    #Plot
-    cu.Plot_basinClean(R,figsize=(figSZ[0],figSZ[1]),cmap = pl.get_cmap('viridis',3),ruta=ruta_out)
-
-########################################################################
-# FUNCIONES PARA EDITAR EL CONFIGFILE.
-def write_parameters_on_configfile(rutaConfig,key,add):
-    ''' #Agrega o cambia parametros (valores, rutas, etc.) a lineas del configfile que inician con key.
-        Esta funcion necesita que siempre exista un ultimo campo despues del key y los dos puntos ':', asi sea un espacio.
-        #Funcion no operacional
-        #Argumentos:
-        - rutaConfig= string, ruta del configfile.
-        - key= palabra clabe de la linea a escribir o sobreescribir.
-    '''
-    #fuente: https://stackoverflow.com/questions/125703/how-to-modify-a-text-file
-
-    #lee archivo con permisos de escritura
-    f = open(rutaConfig , 'r+b')   
-    f_content = f.readlines()
-    #agrega o cambia valores de parametros (valores, rutas, etc.)
-    for pos,line in enumerate(f_content):
-        if line.startswith('- **'+key+'**'):
-            line_now=line
-            f_content[pos] = f_content[pos].split(' ')[0]+' '+f_content[pos].split(' ')[1]+' '+add
-
-    # return pointer to top of file so we can re-write the content with replaced string
-    f.seek(0)
-    # clear file content 
-    f.truncate()
-    # re-write the content with the updated content
-    f.write(''.join(f_content))
-    #cierra el archivo
-    f.close()
-    print 'Aviso: Se edito correctamente la linea **'+key+'** en '+rutaConfig
-
-################################
-#FUNCIONES DE MODEL_UPDATE_STORE
-################################
+#-------------------------------
+#Funciones de Model_Update_Store
+#-------------------------------
 
 def get_modelPlot(RutesList, PlotType = 'Qsim_map'):
     ''' #Devuelve un diccionario con la informacion de la tabla Plot en el configfile.
@@ -1203,20 +506,6 @@ def get_modelConfig_lines(RutesList, key, Calib_Storage = None, PlotType = None)
         return List
     else:
         return 'Aviso: no se encuentran lineas con el key de inicio especificado.'
-
-# def get_rain_last_hours(ruta, rutaTemp, hours, DeltaT = 300):
-#     ''' # Funcion usada por las funciones de Model_Update_Store. No entiendo bien lo que hace, pero al parecer solo lista
-#         las ultimas filas del hdr de lluvia.
-#         # Funcion operacional
-#         # Argumentos:
-#     '''
-#     #calcula los pasos 
-#     Min = DeltaT/60.0
-#     MinInHours = 60.0 / Min
-#     Pasos = int(hours * MinInHours)
-#     #Escribe la cola de informacion 
-#     comando = 'tail '+ruta+' -n '+str(Pasos)+' > '+rutaTemp
-#     os.system(comando)
 
 def model_update_norain_last(key, ruta_rain_hist, DictUpdate, ruta_bck_sto, ruta_sto, DictStore, date, hours, umbral = 1):
     ''' #Actualiza directamente las CI. del modelo de acuerdo a la condicion estipulada en el configfile.
@@ -1396,6 +685,148 @@ def Model_Update_Store(date,rutaRain,ruta_rain_hist,ruta_sto,ruta_bck_sto,DeltaT
                     else:
                         print 'Aviso: No se han remplazado los estados de: '+k
 
+#---------------------------------------------------
+#Funciones de despligue de resultados y graficacion.
+#---------------------------------------------------
+
+def Graph_AcumRain(fechaI,fechaF,cuenca,rutaRain,rutaFigura,vmin=0,vmax=100,verbose=True):
+    ''' Genera grafica de acumulado de radar para un periodo especificado, lo plotea y lo guarda en .png
+        - Si hay lluvia en el periodo definido devuelve 1 si no 0.
+        Funcion operacional.
+        #Argumentos
+        fechaI: string, fecha de inicio del periodo a acumular.
+        fechaF: string, fecha final del periodo a acumular.
+        cuenca: string, ruta del .nc de la cuenca sobre la cual acumular, debe ser la misma de simulacion.
+        rutaRain: string, ruta con los campos de radar historicos generados para esa cuenca.
+        rutaFigura: string, ruta .png donde generar la imagen de acumulado.
+        vmin: float o int, valor minimo para pintar los pixeles con el valor acumulado. Default = 0
+        vmax: float o int, valor m para pintar los pixeles con el valor acumulado. Default= 100
+        verbose: boolean, condicional para que devuelva los prints de la ejecucion. Default= True.
+        #Falta poner ventanas mas grandes de pronostico de lluvia ya que el calentamiento con las par y CI actuales
+        se toma unos 25 pasos.
+    '''
+    #Se lee la informacion
+    rutebin, rutehdr = wmf.__Add_hdr_bin_2route__(rutaRain)
+    cu = cuenca
+    DictRain = wmf.read_rain_struct(rutehdr)
+    R = DictRain[u' Record']
+
+    #Se cuadran las fechas para que casen con las de los archivos de radar.
+
+    #Se obtienen las fechas con minutos en 00 o 05.
+    ####FechaF######
+    #Obtiene las fechas por dias
+    fecha_f = pd.to_datetime(fechaF)
+    fecha_f = fecha_f - pd.Timedelta(str(fecha_f.second)+' seconds')
+    fecha_f = fecha_f - pd.Timedelta(str(fecha_f.microsecond)+' microsecond')
+    #corrige las fechas
+    cont = 0
+    while fecha_f.minute % 5 <>0 and cont<10:
+        fecha_f = fecha_f - pd.Timedelta('1 minutes')
+        cont+=1
+
+    ####FechaI######
+    #Obtiene las fechas por dias
+    fecha_i = pd.to_datetime(fechaI)
+    fecha_i = fecha_i - pd.Timedelta(str(fecha_f.second)+' seconds')
+    fecha_i = fecha_i - pd.Timedelta(str(fecha_f.microsecond)+' microsecond')
+    #corrige las fechas
+    cont = 0
+    while fecha_i.minute % 5 <>0 and cont<10:
+        fecha_i = fecha_i - pd.Timedelta('1 minutes')
+        cont+=1
+
+    #Evalua que las fechas solicitadas existan, si no para aqui y no se grafica nada - if solo sirve para ensayos.. operacionalmente no debe hacer nada.
+    try:
+        lol=R[fecha_i:fecha_f]
+
+        #Ensaya si las fechas solicitadas cuentan con campo de radar en el binario historico, si no escoge la fecha anterior a esa. Este debe existir tambien, lo ideal es que se mantenga el dt, existan campos cada 5 min.
+        ####FechaF######
+        Flag = True
+        cont = 0
+        while Flag:
+            try:
+                lol = R.index.get_loc(fecha_f)
+                Flag = False
+            except:
+                print 'Aviso: no existe campo de lluvia para fecha_f en la serie entregada, se intenta buscar el de 5 min antes'
+                fecha_f = fecha_f - pd.Timedelta('5 minutes')
+            cont+=1
+            if cont>1:
+                Flag = False
+        ####FechaI######
+        Flag = True
+        cont = 0
+        while Flag:
+            try:
+                lol = R.index.get_loc(fecha_i)
+                Flag = False
+            except:
+                print 'Aviso: no existe campo de lluvia para fecha_i en la serie entregada, se intenta buscar el de 5 min antes'
+                fecha_i = fecha_i - pd.Timedelta('5 minutes')
+            cont+=1
+            if cont>1:
+                Flag = False
+
+        #Escoge pos de campos con lluvia dentro del periodo solicitado.
+        pos = R[fecha_i:fecha_f].values
+        pos = pos[pos <>1 ]
+
+        #si hay barridos para graficar
+        if len(pos)>0:
+            #-------
+            #Grafica
+            #-------
+            #Textos para la legenda
+            #~ lab = np.linspace(vmin, vmax, 4)
+            #~ texto = ['Bajo', 'Medio', 'Alto', 'Muy alto']
+            #~ labText = ['%dmm\n%s'%(i,j) for i,j in zip(lab, texto)]
+            #Acumula la lluvia para el periodo
+            Vsum = np.zeros(cu.ncells)
+            for i in pos:
+                v,r = wmf.models.read_int_basin(rutebin,i, cu.ncells)
+                v = v.astype(float); v = v/1000.0
+                Vsum+=v	
+            #Genera la figura 
+            c = cu.Plot_basinClean(Vsum, cmap = pl.get_cmap('viridis',10), 
+                vmin = vmin, vmax = vmax,#~ show_cbar=True,
+                #~ cbar_ticksize = 16,
+                #~ cbar_ticks= lab,
+                #~ cbar_ticklabels = labText,
+                #~ cbar_aspect = 17,
+                ruta = rutaFigura,
+                figsize = (10,12),show=False)
+            # c[1].set_title('Mapa Lluvia de Radar Acumulada', fontsize=16)
+            if verbose:
+                print 'Aviso: Se ha producido una grafica nueva con valores diferentes de cero en '+rutaFigura
+                print fecha_f - fecha_i
+            return 1
+
+        #si no hay barridos
+        else:
+            #-------
+            #Grafica
+            #-------
+            Vsum = np.zeros(cu.ncells)
+            c = cu.Plot_basinClean(Vsum, cmap = pl.get_cmap('viridis',10), 
+                vmin = vmin, vmax = vmax,#show_cbar=True,
+                #~ cbar_ticksize = 16,
+                #~ cbar_ticks= lab,
+                #~ cbar_ticklabels = labText,
+                #~ cbar_aspect = 17,
+                ruta = rutaFigura,
+                figsize = (10,12),show=False)
+            #~ c[1].set_title('Mapa Lluvia de Radar Acumulada', fontsize=16)
+            if verbose:
+                print 'Aviso: Se ha producido un campo sin lluvia en '+rutaFigura
+                print fecha_f - fecha_i
+            return 0
+    except:
+        #si no lo logra que no haga nada.
+        print 'Aviso: no se puede construir una serie porque las fechas solicitada no existen, no se genera png de acumulado de '+ str(fecha_f - fecha_i)
+        pass
+
+                        
 def Plot_qsim_map(Lista,verbose=False):
     #obtiene la razon entre Qsim y Qmed 
     cu=Lista[2]
@@ -1625,130 +1056,590 @@ def Graph_Slides(date,cuenca,ruta_in,ruta_out,ListPlotVar,coord=True,verbose=Tru
     #         f.write('%s, \t %.4f \n' % (t,i))
     #     f.close()
     
+def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,nodosim,codeest,mediah,ruta_outNsim,verbose=True):
+    ''' #Genera graficas para cada nodo en .png comparando Nsims y Nobs y los niveles de riesgo, calculando criterio de calibracion
+        Nash-Sutcliffe. Se obtiene Nsim a partir de Qsim, restando la media de Qsim y sumando la media historica de Qobs 'mediah'.
+        #Funcion operacional.
+        #Argumentos:
+        ruta_inQhist: string, ruta de donde se lee el Qhist simulado de una parametrizacion. 
+        ruta_inQsim: string, ruta de donde se lee el Qsim de una parametrizacion.
+        ruta_outLevelspng: string, ruta de la carpeta donde se guardan los .pngs.
+        ruta_out_rain: string, ruta de la carpeta de donde se leen los .hdr de los campos de radar de esa cuenca.
+        date: string, con la fecha y hora en la que se corre la imagen, esto para el nombre del .png.
+        nodosim: lista de int's de los nodos que corresponden con estaciones de nivel para comparar simulado.
+        codeest: lista de int's de los codigos de estaciones que corresponden con nodos de simulacion para comparar simulado.
+        mediah: lista de int's de las medias historicas de Nobs en las estaciones que corresponden con nodos de simulacion.
+        ruta_outNsim: string, ruta donde de la carpeta donde se guardan las series Nsim corregidas con Nobs.
+        verbose: boolean, condicional para que devuelva los prints de la ejecucion. Default= True.
+        #Nota: nodosim, codeest y mediah deben tener el mismo size ya que cada pos hace referencia a la misma estacion.
+    '''
+    #Se cambia formato de 
+    nodo_ests=np.array([int(nodo) for nodo in nodosim.split(',')])
+    code_ests=np.array([int(nodo) for nodo in codeest.split(',')])
+    media_hs=np.array([float(nodo) for nodo in mediah.split(',')])
 
-########################################################################
-########################################################################
-########################################################################
-########################################################################
-########################################################################
-########################################################################
-########################################################################
-########################################################################
+    #Se leen resultados de simulacion de todas las par. para todos los nodos.
+    #Leer ultima hora de historico Qsim para cada par.
+    rutah=ruta_inQhist+'*.json'
+    readh=glob.glob(rutah)
+    #Leer las simulacion actual+extrapolacion
+    ruta1=ruta_inQsim+'*.json'
+    read1=glob.glob(ruta1)
+    #Guarda series completas e hist para sacar Nash
+    Qhist=[];Qact=[]
+    for rqhist,rqsim in zip(np.sort(readh),np.sort(read1)):
+        #Q HIST
+        dfhist=pd.read_json(rqhist)
+        # #crea index para poner nans en faltantes, si los hay.
+        # rngindex=pd.date_range(dfhist.index[0],dfhist.index[-1],freq='5min')
+        # dfhist=dfhist.reindex(rngindex)
+        #ultima hora, 12 pasos de 5 min.
+        qhist=dfhist[-12:]
+        #hist para sacar Nash, ultima hr del nodo de salida.
+        Qhist.append(qhist[nodo_ests[0]][-12:])
+        #Q ACT
+        dfsim=pd.read_json(rqsim)
+        qEst=dfsim
+        #ult hr+ extrapolacion
+        Qact.append(qhist.append(qEst))
 
-#FUNCIONES FUERA DE alarmas.py O CODIGOS.
-# 'Graph_Slides_map.py '
-########################################################################
-# FUNCIONES PARA OBTENER RUTAS 
+    for nodo,code,media in zip(nodo_ests,code_ests,media_hs):
+        #Lee ruta del archivo a guardar, si no existe se crea
+        ruta_folder = ruta_outLevelspng+'/'+str(nodo)+'/'
+        Esta = glob.glob(ruta_folder)
+        if len(Esta) == 0:
+            os.system('mkdir '+ruta_folder)
+        ruta_out_png = ruta_folder+'LevelsSimNodo'+str(nodo)+'_'+date+'.png' 
 
+        #series
+        otra = glob.glob(ruta_outNsim)
+        if len(otra) == 0:
+            os.system('mkdir '+ruta_outNsim)
+        #Obtiene las ruta de archivo de salida
+        ruta_out_serie = ruta_outNsim+'NSim'+str(code)+'.csv'
 
+        otra = glob.glob(ruta_outNsim)
+        if len(otra) == 0:
+            os.system('mkdir '+ruta_outNsim)
 
+        #-------------------------------------------------------------------------------------------------------
+        #Grafica comparativa de niveles, con escala de colores y backgroud de siata.
+        #------------------------------------------------------------------------------------------------------
+        fig= pl.figure(figsize=(12,9))
+        ax= fig.add_subplot(111)    
 
-########################################################################
-# FUNCIONES PARA LIDIAR CON CAMPOS DE LLUVIA
+        #Grafica de niveles simulados.
+        #Colormap
+        #-------------------------------------------------------------------------------------------------------
+        parameters = np.linspace(0,len(Qact),len(Qact))
+        # norm is a class which, when called, can normalize data into the [0.0, 1.0] interval.
+        norm = matplotlib.colors.Normalize(
+            vmin=np.min(parameters),
+            vmax=np.max(parameters))
+        #choose a colormap
+        c_m =pl.cm.Spectral#nipy_spectral#winter#autumn#summer#PuBuGn
+        # create a ScalarMappable and initialize a data structure
+        s_m = pl.cm.ScalarMappable(cmap=c_m, norm=norm)
+        s_m.set_array([])
+        #------------------------------------------------------------------------------------------------------
 
-def Rain_NoCero(rutaRain):
-    f = open(rutarain,'r')
-    L = f.readlines()
-    f.close()
-    return float(L[3].split()[-1])
+    #     # Si el nodo tiene estacion instalada
+    #     if  nodo in nodo_est:
 
-def Rain_Cumulated(rutaCampo, cu, rutaAcum = None):
-    rutabin, rutahdr = wmf.__Add_hdr_bin_2route__(rutaCampo)
-    #Lee el esquema del campo 
-    D = pd.read_csv(rutahdr,skiprows=5,
-        index_col=2, parse_dates=True, 
-        infer_datetime_format=True, 
-        usecols = (1,2,3))
-    Nrecords = D[u' Record'][-1]
-    #Acumula la precipitacion para esa consulta
-    Vsum = np.zeros(cu.ncells)
-    for i in range(1,18):
-        v,r = wmf.models.read_int_basin(rutabin,i, cu.ncells)
-        v = v.astype(float); v = v/1000.0
-        Vsum+=v
-    #Entrga Fecha Inicial y Fecha final.
-    FechaI = D[u' Record'].index[0]
-    FechaF = D[u' Record'].index[-1]
-    FechaI = FechaI + pd.Timedelta('5 hours')
-    FechaF = FechaF + pd.Timedelta('5 hours')
-    #si hay ruta de guardado guarda
-    if rutaAcum <> None:
-        #Obtiene rutas binaria y hdr
-        rutabin, rutahdr = wmf.__Add_hdr_bin_2route__(rutaAcum)
-        #Escribe el binario 
-        Temp = np.zeros((1, cu.ncells))
-        Temp[0] = Vsum
-        wmf.models.write_float_basin(rutabin, Temp, 1, cu.ncells, 1)
-        #Escribe el encabezado con fecha inicio y fecha fin del binario
-        f = open(rutahdr, 'w')
-        f.write('Fecha y hora de inicio y fin del binario acumulado:\n')
-        f.write('Fecha1: %s\n' % FechaI.to_pydatetime().strftime('%Y%m%d%H%M'))
-        f.write('Fecha2: %s\n' % FechaF.to_pydatetime().strftime('%Y%m%d%H%M'))
-        f.write('Lluvia Media: %.4f \n' % Vsum.mean())
-        f.close()
-    return Vsum, FechaI, FechaF
+        #Lluvia
+        ruta_hdrp1=ruta_out_rain + 'Lluvia_historica.hdr'
+        ruta_hdrp2=ruta_out_rain + 'Lluvia_actual.hdr'
+        Phist=wmf.read_mean_rain(ruta_hdrp1,100000000000,0)
+        Pextrapol=wmf.read_mean_rain(ruta_hdrp2,100000000000,0) 
 
-def Rain_Cumulated_Dates(rutaAcum, rutaNC):
-    #Obtiene las fechas
-    f = open(rutaAcum, 'r')
-    L = f.readlines()
-    f.close()
-    f1 = L[1].split()[1]
-    f2 = L[2].split()[1]
-    Df = {'Fecha1': L[1].split()[1], 'Fecha2': L[2].split()[1]}
-    Df1 = {'Fecha1': {'atras': pd.to_datetime(f1)-pd.Timedelta('30 minutes'),
-        'adelante':pd.to_datetime(f1)+pd.Timedelta('30 minutes')},
-        'Fecha2': {'atras': pd.to_datetime(f2)-pd.Timedelta('30 minutes'),
-        'adelante':pd.to_datetime(f2)+pd.Timedelta('30 minutes')}}
-    Fechas = []
-    for k in ['Fecha1','Fecha2']:
-        #Obtuiene fechas atras y adelante
-        f11 = Df1[k]['atras'].to_pydatetime().strftime('%Y%m%d')
-        f12 = Df1[k]['adelante'].to_pydatetime().strftime('%Y%m%d')
-        #Lista lo que hay alrededor
-        List = glob.glob(rutaNC+f11+'*.nc')
-        List.extend(glob.glob(rutaNC+f12+'*.nc'))
-        List.sort()
-        List = np.array([pd.to_datetime(i[43:55]) for i in List])
-        #Diferenciass de fecha
-        Diff = np.abs(List - pd.to_datetime(Df[k]))
-        for i in range(4):
+        #-------------------------------------------------------------------------------------------------------
+        #Consulta a base de datos: Nobs y Ns de alerta'
+        #-------------------------------------------------------------------------------------------------------
+        #Se usa las fechas de una serie sim para consultar en bd.
+        serieN=Qact[0]
+        FI=serieN.index.strftime('%Y-%m-%d')[0]
+        FF=serieN.index.strftime('%Y-%m-%d')[-1]
+        HI=serieN.index[0].strftime('%H:%M')
+        HF=serieN.index[-1].strftime('%H:%M')
+        # coneccion a bd con usuario operacional
+        host   = '192.168.1.74'
+        user   = 'siata_Oper'
+        passwd = 'si@t@64512_operacional'
+        bd     = 'siata'
+        #Consulta a tabla estaciones
+        Estaciones="SELECT Codigo,Nombreestacion, offsetN,N,action_level,minor_flooding,moderate_flooding,major_flooding  FROM estaciones WHERE codigo=("+str(code)+")"
+        dbconn = MySQLdb.connect(host, user,passwd,bd)
+        db_cursor = dbconn.cursor()
+        db_cursor.execute(Estaciones)
+        result = np.array(db_cursor.fetchall())
+        #definicion de niveles de alerta y demas.
+        nombreest=result[0][1] 
+        n1=float(result[0][4])
+        n2=float(result[0][5])
+        n3=float(result[0][6])
+        n4=float(result[0][7])
+        #definicion de tipo N para consultar campo.
+        tipo=int(result[0][3])
+        if tipo == 1:#radar
+            niv='ni'
+        elif tipo == 0:#ultrasonido
+            niv='pr'
+        #Consulta a tabla datos
+        sql_datos ="SELECT DATE_FORMAT(fecha,'%Y-%m-%d'), DATE_FORMAT(hora, '%H:%i:%s'), (" +str(result[0][2])+"-"+niv+"), calidad FROM datos WHERE cliente = ("+str(code)+") and fecha between '"+FI+"' and '"+FF+"' and hora between '"+HI+"' and '"+HF+"'"
+        dbconn = MySQLdb.connect(host, user,passwd,bd)
+        db_cursor = dbconn.cursor()
+        db_cursor.execute(sql_datos)
+        result_data = np.array(db_cursor.fetchall())
+        data = pd.DataFrame(result_data)
+
+        #Se organizan consulta en serie de tiempo.
+
+        fe=[data[0][i]+'-'+data[1][i] for i in range(len(data))]; fe=np.array(fe)
+        nobs=[float(data[2][i]) for i in range(len(data))];nobs=np.array(nobs)
+        calidad=[int(data[3][i]) for i in range(len(data))];calidad=np.array(calidad)
+        #se encuentran y eliminan los datos con datetime malos.
+        badpos=[];dates=[]
+        for i,date in enumerate(fe):
             try:
-                Fechas.append(List[Diff.argmin()+i])
+                dates.append(dt.datetime.strptime(date,'%Y-%m-%d-%H:%M:%S'))
             except:
-                Fechas.append(pd.to_datetime('200001010000'))
-    #Fechas[1] = List[Diff.argmin()+1]
-    return Fechas
+                badpos.append(i)
+        nobs=np.delete(nobs,badpos)
+        calidad=np.delete(calidad,badpos)
+        # serie
+        Nobs=pd.Series(nobs,index=dates)
+
+        #Se corrgie Nobs por calidad
+        try:
+            Nobs[np.where((calidad!=1)&(calidad!=2))[0]]=np.nan
+        except:
+            pass
+        # Nobs[Nobs>float(offset)]=np.nan
+        Nobs[Nobs>600.0]=np.nan
+
+        #Calidad
+        grad=50
+        for k in range(1,(len(Nobs)-1)):
+            d= Nobs[k]
+            c= Nobs[k-1]
+            e= Nobs[k+1]
+            if abs(d-c)>grad and abs(d-e)>grad:
+                Nobs[k]=np.nan
+
+        #Poner Qsims en magnitud de Nobservados.
+        Nnodo=[]
+        for sim in Qact:
+            serie_nodo=sim[nodo]
+            Nsim=serie_nodo-serie_nodo.mean()+media
+            Nnodo.append(Nsim)
+        # Se guardan los Nsim para el programa de Mario
+        Nsims=pd.DataFrame(np.array(Nnodo).T, index=Nnodo[0].index)
+        Nsims.to_csv(ruta_out_serie)
+
+        # Cosas para graficar niveles de riesgo.
+        ylim4=n4+(n4*0.2)
+        levels=[n1,n2,n3,n4,ylim4]
+        lnames=['N1','N2', 'N3', 'N4']
+        lcolors=['g','orange','orangered','indigo']
+
+        #plot
+        for i in range(0,len(levels)):
+            try:
+                ax.fill_between(x=[Nobs.index[0],serieN.index[-1]], 
+                                y1=[levels[i],levels[i]],
+                                y2=[levels[i+1],levels[i+1]], 
+                                color = lcolors[i], 
+                                alpha = 0.22,
+                                label=lnames[i])
+            except:
+                pass
 
 
+        #PLOT
+        for i,parameter in zip(np.arange(0,len(Nnodo)),parameters):
+            #NASH
+            nash=wmf.__eval_nash__(Nobs,Nnodo[i])
+            ax.plot(Nnodo[i],lw=2.5,linestyle='--', label='P0'+str(i+1)+'- NS:%.2f'%(nash),color=s_m.to_rgba(parameter))
+        #Text ans ticks color.
+        backcolor='dimgray'  
+        #Obs
+        ax.plot(Nobs,c='k',lw=3.5, label='Nobs')
+        ax.set_title('Est. %s. %s ___ Fecha: %s'%(code,nombreest,serieN.index.strftime('%Y-%m-%d')[0]), fontsize=17,color=backcolor)
+        ax.set_ylabel('Nivel  $[cm]$', fontsize=17,color=backcolor)
+        ax.axvline(x=Nobs.index[-1],lw=2,color='gray',label='Now')
+
+        # Second axis
+        #plot
+        axAX=pl.gca()
+        ax2=ax.twinx()
+        ax2AX=pl.gca()
+        try:
+            #Mean rainfall
+            # Busca en Qact la primera pos del obs.
+            p1=Phist[Phist.index.get_loc(Qact[0].index[0]):]
+            # Busca en Pextrapol la ultima  pos del Pobs
+            p2=Pextrapol[Pextrapol.index.get_loc(Phist.index[-1])+1:]
+            P=p1.append(p2)
+            #Se pasa a mm/h
+            P=P*12.0
+
+            #resto del plot
+            ax2.fill_between(P.index,0,P,alpha=0.25,color='dodgerblue',lw=0)
+            #limites
+            ax2AX.set_ylim((0,20)[::-1]) 
+        except:
+            print 'Aviso: No se grafica Lluvia promedio, no exiten campos para la fecha en el historico'
+
+        #Formato  resto de grafica.
+        ax.tick_params(labelsize=14)
+        ax.grid()
+        ax.autoscale(enable=True, axis='both', tight=True)
+        #setting default color of ticks and edges
+        ax.tick_params(color=backcolor, labelcolor=backcolor)
+        for spine in ax.spines.values():
+            spine.set_edgecolor('gray')
+        #color of legend text
+        leg = ax.legend(ncol=3,loc=(0.26,-0.255),fontsize=12)
+        for text in leg.get_texts():
+            pl.setp(text, color = 'dimgray')
+
+        #ylim para la grafica respecto a Nobs.
+        ylim=n4+(n4*0.05)
+        y_lim=Nobs.mean()*0.5
+        ax.set_ylim(y_lim,ylim)
+
+        #Formato resto de grafica - Second axis
+        ax2.set_ylabel(u'Precipitacion media - cuenca [$mm$]',size=17,color=backcolor)    
+        ax2.tick_params(labelsize=14)
+        ax2.tick_params(color=backcolor, labelcolor=backcolor)
+        for spine in ax2.spines.values():
+            spine.set_edgecolor('gray')
+        #Se guarda la figura.
+        ax.figure.savefig(ruta_out_png,bbox_inches='tight')
+
+    if verbose:
+        print 'Aviso: Plot de niveles generado en '+ruta_out_png
+
+def GraphAnimationsAndDelLast(rutaFiguras,imagenpagina,nfiles=288,verbose=True):
+    ''' #Elimina imagenes generadas en la ruta definida si la cantidad sobre pasa el umbral 'nfiles'.
+        Genera animacion con las imagenes que se encuentran en la 'rutaFiguras'.
+        Si 'imagenpagina'=True, crea o sobreescribe copia de la ultima imagen aparte para el despligue en la pagina de siata.
+        #Funcion operacional.
+        #Argumentos:
+        rutaFiguras: string, ruta de la carpeta con las imagenes con que se quiere crear animacion, borrar o copiar ultima imagen.
+        imagenpagina: boolean, True si se quiere crear copia de la ultima imagen.
+        nfiles: int, numero de archivos limite a partir del cual borrar.
+        verbose: boolean, condicional para que devuelva los prints de la ejecucion. Default= True.
+        '''
+    #Lista las carpetas que coinciden con la ruta 
+    #si es LevelsGraphs, se lee lo de dentro porque es una sola que tiene varias cosas
+    if rutaFiguras.split('/')[-1] == 'LevelsGraphs':
+        Lista = glob.glob(rutaFiguras+'/*')
+    #si no es, se leen desde afuera porque hay varias par.
+    else:
+        Lista = glob.glob(rutaFiguras+'*')
+    #Itera sobre cada carpeta
+    for l in Lista:
+        # Organiza archivos
+        ListTemp = glob.glob(l+'/*')
+        ListTemp.sort()
+        # Borra lo viejo 
+        if len(ListTemp)>= nfiles:
+            for i in ListTemp[:-nfiles]:
+                os.system('rm '+i)
+            if verbose:
+                print 'Aviso: Se han dejado solo '+str(nfiles)+' elementos en '+l
+        else:
+            if verbose:
+                print 'Aviso: No hay suficientes archivos para borrar '+str(len(ListTemp))
+        #Se copia ultima imagen para la pagina
+        if imagenpagina:
+            # sino existe la ruta de la animacion la crea
+            rutaIpagina=l+'/imagenpagina/'
+            Otra= glob.glob(rutaIpagina)
+            if len(Otra) == 0:
+                os.system('mkdir '+rutaIpagina)
+            #copia la ultima imagen para sobreescribirla siempre con el mismo nombre
+            pngsort=[i[-3:] for i in ListTemp]
+            pngsort=np.array(pngsort)
+            pospng=np.where(pngsort=='png')[0]
+            try:
+                os.system('cp '+ListTemp[pospng[-1]]+' '+rutaIpagina+'imagenpagina.png')
+                print 'Aviso: Se copia ultima imagen para la pagina'
+            except:
+                pass
+        else:
+            pass
+#SE COMENTA LA GENERACION DE ANIMACIONES PORQUE LA PAGINA LO HACE BIEN, HAY QUE CAMBIAR LOS NOMBRES DE LOS ARCHIVOS PARA QUE ESTE FUNCIONE
+        # # Sino existe la ruta de la animacion la crea
+        # rutaAnimacion=l+'/animation/'
+        # Esta= glob.glob(rutaAnimacion)
+        # if len(Esta) == 0:
+        #     os.system('mkdir '+rutaAnimacion)
+        # # Crea la animacion
+        # os.system('convert -delay 10 -loop 0 '+l+'/*00.png '+rutaAnimacion+'animation24hr.gif ')
+        # print 'Aviso: Animacion generada en '+rutaAnimacion   
+
+def Genera_json(rutaQhist,rutaQsim,ruta_out,verbose=True):
+    ''' #Actualiza, o crea si no existe, un .json para desplegar informacion de los caudales simulados en la pagina de SIATA.
+        Guarda: Q_actual (del archivo de la ultima corrida), 
+                Qmax_ult24h (del hist), Qmax_next1h (del archivo de la ultima corrida), 
+                FechaActual (index inicial del archivo de la ultima corrida), 
+                Fecha_max_ult24h (index del valor),
+                Fecha_max_next1h (index del valor).
+        #Funcion operacional.
+        #Argumentos:
+        rutaQhist: string, ruta de donde se lee el Qhist simulado de una parametrizacion.
+        rutaQsim: string, ruta de donde se lee el Qsim (de la ultima corrida) de una parametrizacion.
+        ruta_out: string, ruta donde se escribe el .json.
+        verbose: boolean, condicional para que devuelva los prints de la ejecucion. Default= True.
+    '''
+    #Carga los caudales simulados de la parametrizacionn escogida
+    #Qsim historico dataframe
+    Qhist = pd.read_json(rutaQhist)
+    #Qsim actual y next1hr dataframe
+    Qsim=pd.read_json(rutaQsim)
+    #Se toman los nodos desde Qsim
+    Nodos = Qsim.columns.values
+
+    #Genera el Diccionario con los caudales y sus fechas y escribe el json
+    superDict={}
+    fecha = {}
+    Dict = {}
+    for n in Nodos:
+        Dict.update({str(n):{}})
+        #Qsim en la pos 1.
+        Dict[str(n)].update({'Qactual': float('%.3f' % Qsim[n][0])})
+        # Dict[str(n)].update({'Qmax_ult24h': float('%.3f' % Qhist[n][-288:].max())})
+        Dict[str(n)].update({'Qmax_next1h': float('%.3f' % Qsim[n].max())})
+        fecha.update({'FechaActual':Qsim[n].index[0].strftime('%Y-%m-%d-%H:%M')})
+        # fecha.update({'Fecha_max_ult24h':Qhist[n][-288:].argmax().strftime('%Y-%m-%d-%H:%M')})
+        fecha.update({'Fecha_max_next1h':Qsim[n].argmax().strftime('%Y-%m-%d-%H:%M')})
+    superDict.update({'Fechas':fecha})
+    superDict.update({'Q':Dict})
+    esta=glob.glob(ruta_out)
+    if len(esta)==0:
+        os.system('mkdir '+ruta_out)
+    with open(ruta_out+'Qsim.json', 'w') as outfile:
+        json.dump(superDict, outfile)
+    if verbose:
+        print'Aviso: Se actualiza correctamente el .json'
+
+#-----------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------------
+#Funciones no operacionales
+#-----------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------------
+
+#------------------------------------------------
+#Funciones que crean rutas de archivos historicos
+#------------------------------------------------
+
+def model_write_rutesHists(rutaConfig,Qhist=True,Shist=True):
+    ''' #Genera archivos vacios para cada parametrizacion cuando no existe historia o si esta quiere renovarse. 
+        Si se quiere dejar de crear rutas para alguno de los dos, se debe indicar False. e.g. Shist=False.
+        Genera un dataframe con la primera fila de un qsim, ssim.hdr cualquiera, resultado de simulacion de la cuenca de
+        interes; la ruta de este archivo debe estar indicado en el configfile.
+        #Funcion no operacinal.
+        #Argumentos:
+        -rutaConfig: string, ruta del configfile.
+        -Qhist: boolean, crear un Qhist. Default= True.
+        -Shist: boolean, crear un Shist. Default= True.
+    '''
+
+    ListConfig = get_rutesList(rutaConfig)
+
+    #Actualiza Qhist
+    if Qhist:
+        #se lee la ruta donde se va a escribir
+        ruta_qhist = get_ruta(ListConfig,'ruta_qsim_hist')
+        #se lee el archivo que se va a copiar
+        ruta_qsim = get_ruta(ListConfig,'ruta_qsim')
+        rutas_qsim=glob.glob(ruta_qsim+'*.json')
+        rutaqsim=rutas_qsim[0]
+        #se leen los archivos de todas las par para crear Qhist para cada una.
+        listrutas_qsim=np.sort(rutas_qsim)
+
+        for i in listrutas_qsim:
+            #Se lee el archivo Qsim de donde tomar la primera fila.
+            qsim=pd.read_json(rutaqsim)
+            Qh=qsim.iloc[[0]]
+            nameQhistfile=i.split('/')[-1].split('.')[0]+'hist.'+i.split('/')[-1].split('.')[-1]
+            #Pregunta si ya existe y si se quiere sobreescribir
+            try:
+                Lol = os.listdir(ruta_qhist)
+                pos = Lol.index(nameQhistfile)
+                flag = raw_input('Aviso: El archivo Qhist: '+nameQhistfile+' ya existe, desea sobre-escribirlo, perdera la historia de este!! (S o N): ')
+                if flag == 'S':
+                    flag = True
+                else:
+                    flag = False
+            except:
+                flag = True
+            #Guardado
+            if flag:
+                Qh.to_json(ruta_qhist+nameQhistfile)
+                print 'Aviso: Se crean los Qhist, el archivo Qsim usado para crear las rutas es: '+rutaqsim
+            else:
+                print 'Aviso: No se crean los Qhist'
+    else: 
+        print ' Aviso: No se crean archivos Qhist.'
+
+    #Actualiza Shist
+    if Shist:
+        ruta_shist = get_ruta(ListConfig,'ruta_almhist')
+        ruta_ssim = get_ruta(ListConfig,'ruta_almsim')
+        rutas_ssim=glob.glob(ruta_ssim+'*.StOhdr')
+        rutassim=rutas_ssim[0]
+        listrutas_ssim=np.sort(rutas_ssim)
+
+        for j in listrutas_ssim:
+            #Se lee el archivo Qsim de donde tomar la primera fila.
+            ssim=pd.read_csv(j, header = 4, index_col = 5, parse_dates = True, usecols=(1,2,3,4,5,6))
+            Sh=ssim.iloc[[0]]
+            nameShistfile=j.split('/')[-1].split('.')[0]+'hist.'+i.split('/')[-1].split('.')[-1]
+            #Pregunta si ya existe y si se quiere sobreescribir
+            try:
+                Lold = os.listdir(ruta_shist)
+                pos = Lold.index(nameShistfile)
+                flag = raw_input('Aviso: El archivo Shist: '+nameShistfile+' ya existe, desea sobre-escribirlo, perdera la historia de este!! (S o N): ')
+                if flag == 'S':
+                    flag = True
+                else:
+                    flag = False
+            except:
+                flag = True
+            #Guardado
+            if flag:
+                Sh.to_json(ruta_shist+nameShistfile)
+                print 'Aviso: Se crean los Shist , el archivo Ssim usado para crear las rutas es: '+rutassim
+            else:
+                print 'Aviso: No se crean los Shist'
+    else: 
+        print ' Aviso: No se crean archivos S.'        
+
+def model_write_qhist(rutaQsim,rutaQhist):
+    ''' #Actualiza el archivo Qsimhist con el dataframe de la ultima ejecucion de la parametrizacion definida en las rutas de
+        entrada. Abre el archivo Qhist y Qsim y hace append del ultimo dato, usa df.reindex(...,freq='5min') para que la
+        historia quede organizada cronologicamente, por eso solo funciona si se ejecuta con una frecuencia con minuto = 5.
+        La actualizacion de qhist siempre va un paso atras que la de Shist porque el archivo Qsim que genera la ejecucion
+        empieza con un paso atras del que corre y el archivo Ssmim no, la actualizacion toma esa primera pos.
+        #Funcion operacional.
+        #Argumentos:
+        -rutaQsim= string, ruta del Qsim
+        -rutaQhist= string, ruta del Qhis
+    '''
+    ##Se actualizan los historicos de Qsim de la parametrizacion asociada.
+    #Lee el almacenamiento actual
+    Qactual = pd.read_json(rutaQsim)
+    #Lee el historico
+    Qhist = pd.read_json(rutaQhist)
+    #Actualiza Qhist con Qactual.
+    try:
+        Qhist=Qhist.append(Qactual.iloc[[0]])#.sort_index(axis=1))
+        #borra index repetidos, si los hay - la idea es que no haya pero si los hay no funciona el df.reindex
+        # Qhist=Qhist.drop_duplicates()
+        #Crea el index que debe tener la serie con todos los datos
+        rngindex=pd.date_range(Qhist.index[0],Qhist.index[-1],freq='5min')
+        #Si hay faltantes los llena, si no deja igual el df. Esto solo funciona cuando dejamos el cron operacional y el 'freq' es exactamente 5 min.
+        Qhist=Qhist.reindex(rngindex)
+        #Guarda el archivo historico 
+        Qhist.to_json(rutaQhist)
+        # Aviso
+        print 'Aviso: Se ha actualizado el archivo de Qsim_historicos de: '+rutaQhist
+    except:
+        print 'Aviso: no se esta actualizando Qhist en: '+rutaQhist
+
+def model_write_Stohist(ruta_Ssim,ruta_Shist):
+    ''' #Actualiza el Ssimhist con el estado promedio de C.I. de cada tanque, copiandolo desde el .StOhdr a un json antes
+        creado.Abre el archivo Shist y Ssim y hace append del ultimo dato, usa df.reindex(...,freq='5min') para que la
+        historia quede organizada cronologicamente, por eso solo funciona si se ejecuta con una frecuencia con minuto = 5.
+        #Funcion operacional.
+        -ruta_Ssim: string, ruta .hdr del archivo de condiciones antecedentes .StObin resultado de la simulacion.
+        -ruta_Shist: string, ruta .json del archivo Shist.
+    '''
+    ##Se actualizan los historicos de humedad de la parametrizacion asociada.
+    #Lee el almacenamiento actual
+    Sactual = pd.read_csv(ruta_Ssim[:-7]+'.StOhdr', header = 4, index_col = 5, parse_dates = True, usecols=(1,2,3,4,5,6))
+    #Lee el historico
+    Shist = pd.read_json(ruta_Shist)
+    #Actualiza
+    Shist=Shist.append(Sactual.iloc[[0]])
+    #borra index repetidos, si los hay - la idea es que no haya pero si los hay no funciona el df.reindex
+    # Shist=Shist.drop_duplicates()
+    # Crea el index que debe tener la serie con todos los datos
+    rngindex=pd.date_range(Shist.index[0],Shist.index[-1],freq='5min')
+    #Si hay faltantes los llena, si no deja igual el df. Esto solo funciona cuando dejamos el cron operacional y el 'freq' es exactamente 5 min.
+    Shist=Shist.reindex(rngindex)
+
+    #guarda el archivo
+    Shist.to_json(ruta_Shist)
+    print 'Aviso: Se ha actualizado el archivo de Ssim_historicos de: '+ruta_Shist   
+    
+#------------------------    
+#Funciones de graficacion
+#------------------------
+
+def Genera_riskvectorMap(rutaConfig,cuenca,figSZ):  
+    ''' #Genera un mapa en .png con el risk_vector, esta funcion no es de uso operacional.
+        Por lo que necesita leer directamente el ConfigFile.
+        #Funcion no operacional.
+        #Argumentos:
+        - rutaConfig= string, ruta del configfile.
+        - cuenca= string, ruta del .nc del simubasin de la cuenca.
+        - figSZ= lista, debe tener dos valores dentro de si, x -y del figsize del plot.
+    '''
+    #Lee el archivo de configuracion
+    ListConfig = get_rutesList(rutaConfig)
+    #Lectura de rutas de salida de la imagen
+    ruta_out = get_ruta(ListConfig,'ruta_map_riskvector')
+
+    #Lectura de cuenca 
+    cu = wmf.SimuBasin(rute=cuenca, SimSlides = True)
+    wmf.models.slide_allocate(cu.ncells, 10)
+    #Mapa risk vector.
+    R = wmf.models.sl_riskvector#np.copy(wmf.models.sl_riskvector)
+    #Plot
+    cu.Plot_basinClean(R,figsize=(figSZ[0],figSZ[1]),cmap = pl.get_cmap('viridis',3),ruta=ruta_out)
+
+#-----------------------------------
+#Funciones de edicion del configfile
+#-----------------------------------
+
+def write_parameters_on_configfile(rutaConfig,key,add):
+    ''' #Agrega o cambia parametros (valores, rutas, etc.) a lineas del configfile que inician con key.
+        Esta funcion necesita que siempre exista un ultimo campo despues del key y los dos puntos ':', asi sea un espacio.
+        #Funcion no operacional
+        #Argumentos:
+        - rutaConfig= string, ruta del configfile.
+        - key= palabra clabe de la linea a escribir o sobreescribir.
+    '''
+    #fuente: https://stackoverflow.com/questions/125703/how-to-modify-a-text-file
+
+    #lee archivo con permisos de escritura
+    f = open(rutaConfig , 'r+b')   
+    f_content = f.readlines()
+    #agrega o cambia valores de parametros (valores, rutas, etc.)
+    for pos,line in enumerate(f_content):
+        if line.startswith('- **'+key+'**'):
+            line_now=line
+            f_content[pos] = f_content[pos].split(' ')[0]+' '+f_content[pos].split(' ')[1]+' '+add
+
+    # return pointer to top of file so we can re-write the content with replaced string
+    f.seek(0)
+    # clear file content 
+    f.truncate()
+    # re-write the content with the updated content
+    f.write(''.join(f_content))
+    #cierra el archivo
+    f.close()
+    print 'Aviso: Se edito correctamente la linea **'+key+'** en '+rutaConfig
 
 ########################################################################
-# FUNCIONES PARA SET DEL MODELO 
-
-def model_get_constStorage(RutesList, ncells):
-    Storage = np.zeros((5, ncells))
-    for i,c in enumerate(['Inicial Capilar','Inicial Escorrentia','Inicial Subsup','Inicial Subterraneo','Inicial Corriente']):
-        Cs = float(get_ruta(RutesList, c))
-        Storage[i] = Cs
-    return Storage.astype(float)
-
-# def model_update_norain():
-#     print 'no rain'
-
-# def model_update_norain_next():
-#     print 'no next'
-
-# def model_update_norain_last(RainRute, Hours):
-#     # Lee el archivo de lluvia 
-
-#     print 'no last'
-
-def model_def_rutes(ruteStore, ruteStoreHist):
-    ruta_store = ruteStore
-    ruta_store_bck = ruteStoreHist
-
 ########################################################################
-#FUNCIONES PARA GRAFICAR Y GENERAR RESULTADOS
+########################################################################
+########################################################################
+########################################################################
 
 
 
