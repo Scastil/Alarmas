@@ -166,7 +166,6 @@ def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umb
         Stra = np.zeros(cuAMVA.ncells, dtype = int)
         try:
             for c,p in enumerate(pos):
-                print 'way 11111'
                 #Lee la imagen de radar para esa fecha
                 g = netCDF4.Dataset(ListRutas[p])
                 RadProp = [g.ncols, g.nrows, g.xll, g.yll, g.dx, g.dx]                        
@@ -190,7 +189,6 @@ def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umb
                 #Cierra el netCDF
                 g.close()
         except Exception, e:
-            print 'way 22222'
             rvec = np.zeros(cuAMVA.ncells)
             if save_escenarios:
                 rhigh = np.zeros(cuAMVA.ncells)
@@ -206,6 +204,7 @@ def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umb
             fecha = dates-dt.timedelta(hours = 5),
             dt = Dt,
             umbral = umbral)
+        print 'se actualiza'
         if save_escenarios:
             dentro = cuHigh.rain_radar2basin_from_array(vec = rhigh,
                 ruta_out = rutaRes+'_high',
