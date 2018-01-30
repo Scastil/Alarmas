@@ -41,11 +41,31 @@ de las celdas.
 - **Factor de Seguridad FS**: 0.5
 - **Factor Corrector Zg**: 1.0
 
-> Algunas cosas necesarias de la cuenca  (los parametros a continuacion deben tener el mismo numero de elementos, siempre el primer elemento 
-deber ser el del nodo de salida con el que se calibra)
+> Algunas cosas necesarias para desplegar la informacion registrada en la cuenca:
+
+- Datos estaciones de nivel:
+
+ Los parametros a continuacion deben tener el mismo numero de elementos separados por coma, siempre el primer elemento
+deber ser el del nodo de salida con el que se calibra.
+
 - **nodosim**: 1
 - **codeestN**: 140
 - **mediaN**: 229.959960938
+
+- Estaciones pluviométricas dentro de la cuenca:
+
+En el caso de esta cuenca, debemos incluir todas las estaciones. Por tanto se señalan las que estan por fuera de la cuenca para descartarlas,
+y se indica la condicion:
+
+## Estaciones Pluvio por nodos de simulacion:
+
+|-plu|Nivel-cuenca|Est_Pluvioadentro|Est_Pluvioafuera|
+|:--:|:----------:|:---------------:|:--------------:|
+|-plu|140|160,227,194,190,168,165,63,75,4||
+
+
+- **pluvio_out**: True
+
 
 ## Rutas de salida - resultados:
 
@@ -63,6 +83,10 @@ Rutas donde se alojan los resultados obtenidos por el modelo.
 	> Archivo plano con historico de lluvia, se usa para evaluar reglas de actualizacion.
 - **ruta_qsim_hist**: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/03_modelo/Op_AMVA60m/results/02_caudalsim/01_caudalsim_hist/
 	> Ruta en donde se actualizan los archivos historicos de caudales simulados 
+- **ruta_estadistico**: /media/nicolas/Home/Jupyter/Esneider/modelo_crecidas/pronostico_niveles.bin
+        > Ruta en la cual se alojan los resultados del modelo estadistico de crecidas.
+- **ruta_pluvioforecast**: /media/nicolas/Home/Jupyter/Esneider/Lluvia_operacional/Salidas/
+        > Ruta en la cual se alojan los resultados del pronóstico estadístico para toda la red pluviométrica.
 - **ruta_slides**: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/03_modelo/Op_AMVA60m/results/04_slidessim/Slides_results.bin
 	> Ruta donde se guarda el binario con los mapas de posible ocurrencia de deslizamientos.
 - **ruta_qsim2Json**: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/03_modelo/Op_AMVA60m/results/02_caudalsim/Qsim_001.json
@@ -130,7 +154,7 @@ para alguno de los casos presentados en la tabla:
 
 |id     | Nombre                 | Ultima Actualizacion |
 |:-----:|:-----------------------|:--------------------:|
-| -t 001|CuBarbosa_001_001.StObin|2018-01-19-16:30|
+| -t 001|CuBarbosa_001_001.StObin|2018-01-23-12:40|
 
 
 ___

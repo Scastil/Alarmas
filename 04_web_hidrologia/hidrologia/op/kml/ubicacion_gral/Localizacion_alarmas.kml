@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml>
+<Document>
+	<name>LocalizacionAlarmas</name>
+	<Style id="sn_caution">
+		<IconStyle>
+			<scale>1.2</scale>
+			<Icon>
+				<href>http://siata.gov.co/iconos/nuevos/sirenas.png</href>
+			</Icon>
+			<hotSpot x="0.5" y="0" xunits="fraction" yunits="fraction"/>
+		</IconStyle>
+		<LabelStyle>
+			<color>00ffffff</color>
+		</LabelStyle>
+	</Style>
+	<Style id="sh_caution">
+		<IconStyle>
+			<scale>1.4</scale>
+			<Icon>
+				<href>http://siata.gov.co/iconos/nuevos/sirenas.png</href>
+			</Icon>
+			<hotSpot x="0.5" y="0" xunits="fraction" yunits="fraction"/>
+		</IconStyle>
+		<LabelStyle>
+			<color>00ffffff</color>
+		</LabelStyle>
+	</Style>
+	<StyleMap id="msn_caution">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#sn_caution</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#sh_caution</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="msn_caution1">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#sn_caution1</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#sh_caution1</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="sn_caution1">
+		<IconStyle>
+			<scale>1.2</scale>
+			<Icon>
+				<href>http://siata.gov.co/iconos/nuevos/sirenas.png</href>
+			</Icon>
+			<hotSpot x="0.5" y="0" xunits="fraction" yunits="fraction"/>
+		</IconStyle>
+	</Style>
+	<Style id="sh_caution1">
+		<IconStyle>
+			<scale>1.4</scale>
+			<Icon>
+				<href>http://siata.gov.co/iconos/nuevos/sirenas.png</href>
+			</Icon>
+			<hotSpot x="0.5" y="0" xunits="fraction" yunits="fraction"/>
+		</IconStyle>
+	</Style>
+	<Schema name="Alarmas" id="Alarmas">
+		<SimpleField name="icon" type="string"></SimpleField>
+	</Schema>
+	<Folder>
+		<name>LocalizacionAlarmas</name>
+		<open>1</open>
+		<Placemark>
+			<name>Santa Rita - San Antonio de Prado</name>
+			<open>1</open>
+			<styleUrl>#msn_caution</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#Alarmas">
+					<SimpleData name="icon">http://siata.gov.co/iconos/nuevos/sirenas.png</SimpleData>
+				</SchemaData>
+			</ExtendedData>			
+			<Point>
+				<coordinates>-75.6515,6.19057,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Andalucia - Caldas</name>
+			<open>1</open>
+			<LookAt>
+				<longitude>-75.62896097268258</longitude>
+				<latitude>6.094205542236809</latitude>
+				<altitude>0</altitude>
+				<heading>-0.03316359616605544</heading>
+				<tilt>0</tilt>
+				<range>296.3319666523814</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#msn_caution</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#Alarmas">
+					<SimpleData name="icon">http://siata.gov.co/iconos/nuevos/sirenas.png</SimpleData>
+				</SchemaData>
+			</ExtendedData>			
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>-75.62780961304347,6.094065,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>La Raya</name>
+			<open>1</open>
+			<LookAt>
+				<longitude>-75.63700900000002</longitude>
+				<latitude>6.112853000000001</latitude>
+				<altitude>0</altitude>
+				<heading>2.981770013872047e-15</heading>
+				<tilt>0</tilt>
+				<range>999.9999999981322</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#msn_caution</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#Alarmas">
+					<SimpleData name="icon">http://siata.gov.co/iconos/nuevos/sirenas.png</SimpleData>
+				</SchemaData>
+			</ExtendedData>			
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>-75.63700833333334,6.112852777777777,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Las Violetas - Medellín</name>
+			<open>1</open>
+			<LookAt>
+				<longitude>-75.61265208983363</longitude>
+				<latitude>6.234552764625668</latitude>
+				<altitude>0</altitude>
+				<heading>0.000224683587128195</heading>
+				<tilt>0</tilt>
+				<range>225.5334465643466</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#msn_caution</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#Alarmas">
+					<SimpleData name="icon">http://siata.gov.co/iconos/nuevos/sirenas.png</SimpleData>
+				</SchemaData>
+			</ExtendedData>			
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>-75.61265208983363,6.234552764625668,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Buenos Aires - Barbosa</name>
+			<open>1</open>
+			<LookAt>
+				<longitude>-75.32793638954813</longitude>
+				<latitude>6.432705947243504</latitude>
+				<altitude>0</altitude>
+				<heading>-6.835419122380353e-05</heading>
+				<tilt>0</tilt>
+				<range>179.9681356606141</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#msn_caution</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#Alarmas">
+					<SimpleData name="icon">http://siata.gov.co/iconos/nuevos/sirenas.png</SimpleData>
+				</SchemaData>
+			</ExtendedData>			
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>-75.32769896518055,6.432780618800839,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Barrio Paris - Bello</name>
+			<open>1</open>
+			<LookAt>
+				<longitude>-75.57992517540896</longitude>
+				<latitude>6.315713986511597</latitude>
+				<altitude>0</altitude>
+				<heading>1.11928831040113e-05</heading>
+				<tilt>0</tilt>
+				<range>123.0896781052177</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#msn_caution</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#Alarmas">
+					<SimpleData name="icon">http://siata.gov.co/iconos/nuevos/sirenas.png</SimpleData>
+				</SchemaData>
+			</ExtendedData>			
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>-75.579639,6.315827,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Inmaculada - La Estrella</name>
+			<open>1</open>
+			<LookAt>
+				<longitude>-75.63357208516675</longitude>
+				<latitude>6.136648380627536</latitude>
+				<altitude>0</altitude>
+				<heading>1.282078485888727e-06</heading>
+				<tilt>0</tilt>
+				<range>182.0077712204255</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#msn_caution</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#Alarmas">
+					<SimpleData name="icon">http://siata.gov.co/iconos/nuevos/sirenas.png</SimpleData>
+				</SchemaData>
+			</ExtendedData>			
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>-75.633605,6.136653000000001,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Aguas Frias - Altavista</name>
+			<LookAt>
+				<gx:TimeStamp><when>2015-05-18T02:26:00Z</when>
+</gx:TimeStamp>
+				<longitude>-75.62638745973118</longitude>
+				<latitude>6.234035490560132</latitude>
+				<altitude>0</altitude>
+				<heading>0.001444085613227001</heading>
+				<tilt>0</tilt>
+				<range>344.7514170017331</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#msn_caution</styleUrl>
+			<ExtendedData>
+				<SchemaData schemaUrl="#Alarmas">
+					<SimpleData name="icon">http://siata.gov.co/iconos/nuevos/sirenas.png</SimpleData>
+				</SchemaData>
+			</ExtendedData>			
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>-75.62654281384174,6.234064665707228,0</coordinates>
+			</Point>
+		</Placemark>
+	</Folder>
+</Document>
+</kml>
