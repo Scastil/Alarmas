@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document id="root_doc">
+<Folder><name>estnivel_al</name>
+  <Placemark>
+      <Point><coordinates>-75.661333,6.1953667</coordinates></Point>
+  </Placemark>
+  <Placemark>
+      <Point><coordinates>-75.63526,6.09602</coordinates></Point>
+  </Placemark>
+  <Placemark>
+      <Point><coordinates>-75.651535,6.190568</coordinates></Point>
+  </Placemark>
+  <Placemark>
+      <Point><coordinates>-75.633048,6.088251</coordinates></Point>
+  </Placemark>
+  <Placemark>
+      <Point><coordinates>-75.633503,6.136677</coordinates></Point>
+  </Placemark>
+  <Placemark>
+      <Point><coordinates>-75.639668,6.231477</coordinates></Point>
+  </Placemark>
+  <Placemark>
+      <Point><coordinates>-75.32771,6.432915</coordinates></Point>
+  </Placemark>
+  <Placemark>
+      <Point><coordinates>-75.6409,6.11194</coordinates></Point>
+  </Placemark>
+  <Placemark>
+      <Point><coordinates>-75.324997,6.429716</coordinates></Point>
+  </Placemark>
+  <Placemark>
+      <Point><coordinates>-75.62651,6.09259</coordinates></Point>
+  </Placemark>
+  <Placemark>
+      <Point><coordinates>-75.58002,6.31582</coordinates></Point>
+  </Placemark>
+</Folder>
+</Document></kml>

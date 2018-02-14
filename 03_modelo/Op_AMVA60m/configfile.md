@@ -45,7 +45,7 @@ de las celdas.
 
 - Datos estaciones de nivel:
 
- Los parametros a continuacion deben tener el mismo numero de elementos separados por coma, siempre el primer elemento
+ Los parametros a continuacion deben tener el mismo numero de elementos separados por un espacio, siempre el primer elemento
 deber ser el del nodo de salida con el que se calibra.
 
 - **nodosim**: 1

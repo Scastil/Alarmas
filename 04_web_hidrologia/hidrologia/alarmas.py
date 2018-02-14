@@ -39,10 +39,10 @@ def get_rutesList(rutas):
     return L
 
 def get_ruta(RutesList, key):
-    ''' Busca en una lista (RutesList) la linea que empieza con el key indicado.
+    ''' Busca en una lista 'RutesList' la linea que empieza con el key indicado, entrega rutas.
         Funcion base.
         #Argumentos
-        RutesList: Lista que devuelve la funcion en este script 'get_rutesList'
+        RutesList: Lista que devuelve la funcion en este script get_rutesList()
         key: string, key indicado para buscar que linea en la lista empieza con el.
     '''
     if any(i.startswith('- **'+key+'**') for i in RutesList):
@@ -51,6 +51,50 @@ def get_ruta(RutesList, key):
                 return i.split(' ')[-1][:-1]
     else:
         return 'Aviso: no existe linea con el key especificado'
+
+def get_line(RutesList, key):
+    ''' Busca en una lista 'RutesList' la linea que empieza con el key indicado, entrega lineas.
+        Funcion base.
+        #Argumentos
+        RutesList: Lista que devuelve la funcion en este script get_rutesList()
+        key: string, key indicado para buscar que linea en la lista empieza con el.
+    '''
+    if any(i.startswith('- **'+key+'**') for i in RutesList):
+        for i in RutesList:
+            if i.startswith('- **'+key+'**'):
+                return i[:-1].split(' ')[2:]
+    else:
+        return 'Aviso: no existe linea con el key especificado'
+
+def get_tables(RutesList,key):
+    ''' Busca en una lista 'RutesList' la o las lineas que empieza con el '|'+key indicado y las retorna en otra Lista.
+        Se usa para leer infor en tablas especificas.
+        Funcion base.
+        #Argumentos
+        RutesList: Lista que devuelve la funcion en este script get_rutesList()
+        key: string, key indicado para buscar que linea en la lista empieza con el.
+    '''
+    List=[]
+    for i in RutesList:
+            if i.startswith('|'+key) or i.startswith('| '+key):
+                List.append(i)
+    return List
+
+def mappingConfigtable(col_df):
+    ''' #Ejecuta funcion map(int,) sobre 'col_df' seteando los vacios para poderlos leer posteriormente.
+        #Funcion base.
+        #Argumentos:
+        col_df: df[column] del dfconfig.
+    ''' 
+    lis=list(col_df)
+    for pos,value in enumerate(lis):
+        if value=='':
+            lis[pos]=''
+        elif len(value.split(','))>0:
+            lis[pos]=map(int,value.split(','))
+        else:
+            lis[pos]=map(int,value.split(','))
+    return lis
 
 #-----------------------------------------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------------------------------------------------
@@ -251,6 +295,98 @@ def Rain_Rain2Basin(fechaI,fechaF,hora_1,hora_2,cuenca,rutaNC,rutaRes,Dt=300,umb
             print 'Encabezados de binarios de cuenca cerrados y listos, campos generados en: '
             print rutaRes+'\n'
 
+#-----------------------------------
+#-----------------------------------
+#Funciones de lectura del configfile
+#-----------------------------------
+#-----------------------------------
+
+def get_modelPlot(RutesList, PlotType = 'Qsim_map'):
+    ''' #Devuelve un diccionario con la informacion de la tabla Plot en el configfile.
+        #Funcion operacional.
+        #Argumentos:
+        - RutesList= lista, es el resultado de leer el configfile con al.get_ruteslist.
+        - PlotType= boolean, tipo del plot? . Default= 'Qsim_map'.
+    '''
+    for l in RutesList:
+        key = l.split('|')[1].rstrip().lstrip()
+        if key[3:] == PlotType:
+            EjecsList = [i.rstrip().lstrip() for i in l.split('|')[2].split(',')]
+            return EjecsList
+    return key
+
+def get_modelCalib(RutesList):
+    ''' #Devuelve un diccionario con la informacion de la tabla Calib en el configfile.
+        #Funcion operacional.
+        #Argumentos:
+        - RutesList= lista, es el resultado de leer el configfile con al.get_ruteslist.
+    '''
+    DCalib = {}
+    for l in RutesList:
+        c = [float(i) for i in l.split('|')[3:-1]]
+        name = l.split('|')[2]
+        DCalib.update({name.rstrip().lstrip(): c})
+    return DCalib
+
+def get_modelStore(RutesList):
+    ''' #Devuelve un diccionario con la informacion de la tabla Store en el configfile.
+        #Funcion operacional.
+        #Argumentos:
+        - RutesList= lista, es el resultado de leer el configfile con al.get_ruteslist.
+    '''
+    DStore = {}
+    for l in RutesList:
+        l = l.split('|')
+        DStore.update({l[1].rstrip().lstrip():
+            {'Nombre': l[2].rstrip().lstrip(),
+            'Actualizar': l[3].rstrip().lstrip(),
+            'Tiempo': float(l[4].rstrip().lstrip()),
+            'Condition': l[5].rstrip().lstrip(),
+            'Calib': l[6].rstrip().lstrip(),
+            'BackSto': l[7].rstrip().lstrip(),
+            'Slides': l[8].rstrip().lstrip()}})
+    return DStore
+
+def get_modelStoreLastUpdate(RutesList):
+    ''' #Devuelve un diccionario con la informacion de la tabla Update en el configfile.
+        #Funcion operacional.
+        #Argumentos:
+        - RutesList= lista, es el resultado de leer el configfile con al.get_ruteslist.
+    '''
+    DStoreUpdate = {}
+    for l in RutesList:
+        l = l.split('|')
+        DStoreUpdate.update({l[1].rstrip().lstrip():
+            {'Nombre': l[2].rstrip().lstrip(),
+            'LastUpdate': l[3].rstrip().lstrip()}})
+    return DStoreUpdate
+
+def get_modelConfig_lines(RutesList, key, Calib_Storage = None, PlotType = None):
+    ''' #Devuelve un diccionario con la informacion de las tablas en el configfile: Calib, Store, Update, Plot.
+        #Funcion operacional.
+        #Argumentos:
+        - RutesList= lista, es el resultado de leer el configfile con al.get_ruteslist.
+        - key= string, palabra clave de la tabla que se quiere leer. Puede ser: -s,-t.
+        - Calib_Storage= string, palabra clave de la tabla que se quiere leer. Puede ser: Calib, Store, Update, Plot.
+        - PlotType= boolean, tipo del plot? . Default= None.
+    '''
+    List = []
+    for i in RutesList:
+        if i.startswith('|'+key) or i.startswith('| '+key):
+            List.append(i)
+    if len(List)>0:
+        if Calib_Storage == 'Calib':
+            return get_modelCalib(List)
+        if Calib_Storage == 'Store':
+            return get_modelStore(List)
+        if Calib_Storage == 'Update':
+            return get_modelStoreLastUpdate(List)
+        if Calib_Storage == 'Plot':
+            return get_modelPlot(List, PlotType=PlotType)
+        return List
+    else:
+        return 'Aviso: no se encuentran lineas con el key de inicio especificado.'
+
 #----------------------------------
 #----------------------------------
 # Funciones de ejecucion del modelo
@@ -419,92 +555,6 @@ def Model_Ejec(ruta_out_rain,cuenca,rutaConfig,verbose=True):
 #-------------------------------
 #Funciones de Model_Update_Store
 #-------------------------------
-
-def get_modelPlot(RutesList, PlotType = 'Qsim_map'):
-    ''' #Devuelve un diccionario con la informacion de la tabla Plot en el configfile.
-        #Funcion operacional.
-        #Argumentos:
-        - RutesList= lista, es el resultado de leer el configfile con al.get_ruteslist.
-        - PlotType= boolean, tipo del plot? . Default= 'Qsim_map'.
-    '''
-    for l in RutesList:
-        key = l.split('|')[1].rstrip().lstrip()
-        if key[3:] == PlotType:
-            EjecsList = [i.rstrip().lstrip() for i in l.split('|')[2].split(',')]
-            return EjecsList
-    return key
-
-def get_modelCalib(RutesList):
-    ''' #Devuelve un diccionario con la informacion de la tabla Calib en el configfile.
-        #Funcion operacional.
-        #Argumentos:
-        - RutesList= lista, es el resultado de leer el configfile con al.get_ruteslist.
-    '''
-    DCalib = {}
-    for l in RutesList:
-        c = [float(i) for i in l.split('|')[3:-1]]
-        name = l.split('|')[2]
-        DCalib.update({name.rstrip().lstrip(): c})
-    return DCalib
-
-def get_modelStore(RutesList):
-    ''' #Devuelve un diccionario con la informacion de la tabla Store en el configfile.
-        #Funcion operacional.
-        #Argumentos:
-        - RutesList= lista, es el resultado de leer el configfile con al.get_ruteslist.
-    '''
-    DStore = {}
-    for l in RutesList:
-        l = l.split('|')
-        DStore.update({l[1].rstrip().lstrip():
-            {'Nombre': l[2].rstrip().lstrip(),
-            'Actualizar': l[3].rstrip().lstrip(),
-            'Tiempo': float(l[4].rstrip().lstrip()),
-            'Condition': l[5].rstrip().lstrip(),
-            'Calib': l[6].rstrip().lstrip(),
-            'BackSto': l[7].rstrip().lstrip(),
-            'Slides': l[8].rstrip().lstrip()}})
-    return DStore
-
-def get_modelStoreLastUpdate(RutesList):
-    ''' #Devuelve un diccionario con la informacion de la tabla Update en el configfile.
-        #Funcion operacional.
-        #Argumentos:
-        - RutesList= lista, es el resultado de leer el configfile con al.get_ruteslist.
-    '''
-    DStoreUpdate = {}
-    for l in RutesList:
-        l = l.split('|')
-        DStoreUpdate.update({l[1].rstrip().lstrip():
-            {'Nombre': l[2].rstrip().lstrip(),
-            'LastUpdate': l[3].rstrip().lstrip()}})
-    return DStoreUpdate
-
-def get_modelConfig_lines(RutesList, key, Calib_Storage = None, PlotType = None):
-    ''' #Devuelve un diccionario con la informacion de las tablas en el configfile: Calib, Store, Update, Plot.
-        #Funcion operacional.
-        #Argumentos:
-        - RutesList= lista, es el resultado de leer el configfile con al.get_ruteslist.
-        - key= string, palabra clave de la tabla que se quiere leer. Puede ser: -s,-t.
-        - Calib_Storage= string, palabra clave de la tabla que se quiere leer. Puede ser: Calib, Store, Update, Plot.
-        - PlotType= boolean, tipo del plot? . Default= None.
-    '''
-    List = []
-    for i in RutesList:
-        if i.startswith('|'+key) or i.startswith('| '+key):
-            List.append(i)
-    if len(List)>0:
-        if Calib_Storage == 'Calib':
-            return get_modelCalib(List)
-        if Calib_Storage == 'Store':
-            return get_modelStore(List)
-        if Calib_Storage == 'Update':
-            return get_modelStoreLastUpdate(List)
-        if Calib_Storage == 'Plot':
-            return get_modelPlot(List, PlotType=PlotType)
-        return List
-    else:
-        return 'Aviso: no se encuentran lineas con el key de inicio especificado.'
 
 def model_update_norain_last(key, ruta_rain_hist, DictUpdate, ruta_bck_sto, ruta_sto, DictStore, date, hours, umbral = 1):
     ''' #Actualiza directamente las CI. del modelo de acuerdo a la condicion estipulada en el configfile.
@@ -1055,9 +1105,11 @@ def Graph_Slides(date,cuenca,ruta_in,ruta_out,ListPlotVar,coord=True,verbose=Tru
     #         f.write('%s, \t %.4f \n' % (t,i))
     #     f.close()
     
-def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,nodosim,codeest,mediah,ruta_outNsim,verbose=True):
-    ''' #Genera graficas para cada nodo en .png comparando Nsims y Nobs y los niveles de riesgo, calculando criterio de calibracion
-        Nash-Sutcliffe. Se obtiene Nsim a partir de Qsim, restando la media de Qsim y sumando la media historica de Qobs 'mediah'.
+def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,nodosim,codeest,mediah,ruta_outNsim,res_estadistico,pluvio_out,res_pluvioforecast,estpluvio,verbose=True):
+    ''' #Genera graficas para cada nodo en .png comparando Nsims y Nobs y los niveles de riesgo, calculando criterio de
+        calibracion Nash-Sutcliffe. Incluye resultado de modelo estadistico de crecida y transito y lluvia promedio en la
+        cuenca, radar+extrapolacion y pluvio+pluvio_forecast. Se obtiene Nsim a partir de Qsim, restando la media de Qsim y
+        sumando la media historicade Qobs 'mediah'.
         #Funcion operacional.
         #Argumentos:
         ruta_inQhist: string, ruta de donde se lee el Qhist simulado de una parametrizacion. 
@@ -1069,13 +1121,27 @@ def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,n
         codeest: lista de int's de los codigos de estaciones que corresponden con nodos de simulacion para comparar simulado.
         mediah: lista de int's de las medias historicas de Nobs en las estaciones que corresponden con nodos de simulacion.
         ruta_outNsim: string, ruta donde de la carpeta donde se guardan las series Nsim corregidas con Nobs.
+        res_pluvioforecast: string, ruta donde se lee el resultado de pluvio_forecast.
+        estpluvio: lista de strings, usada para especificar las estaciones pluvio dentro de la cuenca.
+        pluvio_out: boolean, se tienen en cuenta o se eliminan del df resultado de pluvio_forecast las estaciones leidas del
+        configfile.
         verbose: boolean, condicional para que devuelva los prints de la ejecucion. Default= True.
-        #Nota: nodosim, codeest y mediah deben tener el mismo size ya que cada pos hace referencia a la misma estacion.
+        #Nota: 'nodosim', 'codeest' y 'mediah' deben tener el mismo size, y 'estpluvio' debe tener len(size+1). Esto ya que
+        las pos hacen referencia a una misma estacion.
     '''
     #Se cambia formato de 
     nodo_ests=np.array([int(nodo) for nodo in nodosim.split(',')])
     code_ests=np.array([int(nodo) for nodo in codeest.split(',')])
     media_hs=np.array([float(nodo) for nodo in mediah.split(',')])
+    #est_pluvio dentro de la cuenca
+    ests_pluvio=[line.split('|')[1:-1] for line in estpluvio]
+    ests_pluvios=pd.DataFrame(ests_pluvio)
+    ests_pluvios.columns=ests_pluvios.iloc[0]
+    ests_pluvios.index=ests_pluvios['Nivel-cuenca']
+    ests_pluvios=ests_pluvios.drop('Nivel-cuenca')
+    ests_pluvios=ests_pluvios.drop('-plu',axis=1)
+    ests_pluvios=ests_pluvios.drop('Nivel-cuenca',axis=1)
+    ests_pluvios.index.name=''
 
     #Se leen resultados de simulacion de todas las par. para todos los nodos.
     #Leer ultima hora de historico Qsim para cada par.
@@ -1109,6 +1175,8 @@ def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,n
         if len(Esta) == 0:
             os.system('mkdir '+ruta_folder)
         ruta_out_png = ruta_folder+'LevelsSimNodo'+str(nodo)+'_'+date+'.png' 
+        #lee las estaciones pluvio dentr de la cuenca.
+        est_pluvio=ests_pluvios['Est_Pluvioadentro'][codeest].split(',')
 
         #series
         otra = glob.glob(ruta_outNsim)
@@ -1244,11 +1312,11 @@ def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,n
         #plot
         for i in range(0,len(levels)):
             try:
-                ax.fill_between(x=[Nobs.index[0],serieN.index[-1]], 
+                ax.fill_between(x=[serieN.index[-2],serieN.index[-1]], 
                                 y1=[levels[i],levels[i]],
                                 y2=[levels[i+1],levels[i+1]], 
                                 color = lcolors[i], 
-                                alpha = 0.22,
+                                alpha = 0.35,
                                 label=lnames[i])
             except:
                 pass
@@ -1263,6 +1331,45 @@ def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,n
         backcolor='dimgray'  
         #Obs
         ax.plot(Nobs,c='k',lw=3.5, label='Nobs')
+        
+        #ESTADISTICO
+        # se lee la info del pronostico 30m
+        f=open(res_estadistico)
+        n_pronos=pickle.load(f)
+        f.close()
+
+        n_pronos=pd.DataFrame(n_pronos)
+
+        #si la estacion tiene modelo estadistico
+        if float(code) in map(int,n_pronos[0]):
+            columns=['codigo','n30p25','n30p50','n30p75','Ttop25','Ttop50','Ttop75']
+            n_pronos.columns=columns
+            n_pronos['codigo']=map(int,n_pronos['codigo'])
+            n_pronos.index=n_pronos['codigo']
+            n_pronos=n_pronos.drop('codigo',axis=1)
+            n_pronos=n_pronos.T
+            
+            #si los resultados son todos cero porque no esta lloviendo, no hace nada.
+            if n_pronos[code].all() == 0:
+                pass
+            else:
+                #n30m
+                na=n_pronos[code]['n30p25'];nb=n_pronos[code]['n30p50'];nc=n_pronos[code]['n30p75']
+    #             na=75;nb=100;nc=125
+                #tto
+                ta=n_pronos[code]['Ttop25'];tb=n_pronos[code]['Ttop50'];tc=n_pronos[code]['Ttop75']
+    #             ta=20;tb=30;tc=40
+                #tiempo
+                t1=Nobs.index[-1]+pd.Timedelta(str(ta)+'min');t2=Nobs.index[-1]+pd.Timedelta(str(tb)+'min')
+                t3=Nobs.index[-1]+pd.Timedelta(str(tc)+'min')
+                xt1=pd.date_range(t1,t3,freq='5min')
+
+                #plot
+                ax.fill_between(xt1,na,nc,color='k',alpha=0.17)
+                ax.scatter(t2,nb,c='r')
+        else:
+            pass
+        
         ax.set_title('Est. %s. %s ___ Fecha: %s'%(code,nombreest,serieN.index.strftime('%Y-%m-%d')[0]), fontsize=17,color=backcolor)
         ax.set_ylabel('Nivel  $[cm]$', fontsize=17,color=backcolor)
         ax.axvline(x=Nobs.index[-1],lw=2,color='gray',label='Now')
@@ -1288,6 +1395,30 @@ def Graph_Levels(ruta_inQhist,ruta_inQsim,ruta_outLevelspng,ruta_out_rain,date,n
             ax2AX.set_ylim((0,20)[::-1]) 
         except:
             print 'Aviso: No se grafica Lluvia promedio, no exiten campos para la fecha en el historico'
+
+        try:
+            #Se intenta leer la precipitacion media de pluvio, observada mas forecast estadistico escenario medio.
+            f = open(res_pluvioforecast+'_cast_normal.rain','r')
+            cast_normal = pickle.load(f)
+            f.close()
+
+            #Se escogen las estaciones a tener en cuenta del df leido
+            if pluvio_out:
+                #se eliminan del df la estaciones indicadas, se obtiene el promedio de P dentro de la cuenca.
+                Pcastmean_n=cast_normal.drop(est_pluvio,axis=1).T.mean()
+            else:
+                #se escogen las estaciones dentro de la cuenca y se obtiene promedio.
+                Pcastmean_n=cast_normal[est_pluvio].T.mean()
+
+            #si todo valor en el df es cero porque no hay lluvia, no grafica nada
+            if (Pcastmean_n.all() == 0).all() == True:
+                pass
+            else:
+                #Plot
+                ax2.fill_between(Pcastmean_n.index,0,Pcastmean_n,alpha=0.25,color='k',lw=0)
+                ax2AX.set_ylim((0,20)[::-1])
+        except:
+            print 'Aviso: No se grafica promedio de pluvio forecast.'
 
         #Formato  resto de grafica.
         ax.tick_params(labelsize=14)

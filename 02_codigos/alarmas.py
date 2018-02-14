@@ -39,10 +39,10 @@ def get_rutesList(rutas):
     return L
 
 def get_ruta(RutesList, key):
-    ''' Busca en una lista (RutesList) la linea que empieza con el key indicado.
+    ''' Busca en una lista 'RutesList' la linea que empieza con el key indicado, entrega rutas.
         Funcion base.
         #Argumentos
-        RutesList: Lista que devuelve la funcion en este script 'get_rutesList'
+        RutesList: Lista que devuelve la funcion en este script get_rutesList()
         key: string, key indicado para buscar que linea en la lista empieza con el.
     '''
     if any(i.startswith('- **'+key+'**') for i in RutesList):
@@ -52,12 +52,26 @@ def get_ruta(RutesList, key):
     else:
         return 'Aviso: no existe linea con el key especificado'
 
+def get_line(RutesList, key):
+    ''' Busca en una lista 'RutesList' la linea que empieza con el key indicado, entrega lineas.
+        Funcion base.
+        #Argumentos
+        RutesList: Lista que devuelve la funcion en este script get_rutesList()
+        key: string, key indicado para buscar que linea en la lista empieza con el.
+    '''
+    if any(i.startswith('- **'+key+'**') for i in RutesList):
+        for i in RutesList:
+            if i.startswith('- **'+key+'**'):
+                return i[:-1].split(' ')[2:]
+    else:
+        return 'Aviso: no existe linea con el key especificado'
+
 def get_tables(RutesList,key):
-        ''' Busca en una lista (RutesList) la o las lineas que empieza con el '|'+key indicado y las retorna en otra Lista.
+    ''' Busca en una lista 'RutesList' la o las lineas que empieza con el '|'+key indicado y las retorna en otra Lista.
         Se usa para leer infor en tablas especificas.
         Funcion base.
         #Argumentos
-        RutesList: Lista que devuelve la funcion en este script 'get_rutesList'
+        RutesList: Lista que devuelve la funcion en este script get_rutesList()
         key: string, key indicado para buscar que linea en la lista empieza con el.
     '''
     List=[]
@@ -65,6 +79,22 @@ def get_tables(RutesList,key):
             if i.startswith('|'+key) or i.startswith('| '+key):
                 List.append(i)
     return List
+
+def mappingConfigtable(col_df):
+    ''' #Ejecuta funcion map(int,) sobre 'col_df' seteando los vacios para poderlos leer posteriormente.
+        #Funcion base.
+        #Argumentos:
+        col_df: df[column] del dfconfig.
+    ''' 
+    lis=list(col_df)
+    for pos,value in enumerate(lis):
+        if value=='':
+            lis[pos]=''
+        elif len(value.split(','))>0:
+            lis[pos]=map(int,value.split(','))
+        else:
+            lis[pos]=map(int,value.split(','))
+    return lis
 
 #-----------------------------------------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------------------------------------------------

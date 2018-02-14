@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document id="root_doc">
+<Folder><name>estmeteo_al</name>
+  <Placemark>
+      <Point><coordinates>-75.32722,6.43498</coordinates></Point>
+  </Placemark>
+  <Placemark>
+      <Point><coordinates>-75.63536,6.09628</coordinates></Point>
+  </Placemark>
+  <Placemark>
+      <Point><coordinates>-75.6099625,6.2301841</coordinates></Point>
+  </Placemark>
+  <Placemark>
+      <Point><coordinates>-75.63623913,6.219590339</coordinates></Point>
+  </Placemark>
+</Folder>
+</Document></kml>
