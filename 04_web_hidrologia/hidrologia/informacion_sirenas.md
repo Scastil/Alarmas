@@ -48,4 +48,8 @@ Notas:
         > Ruta en la que se crea el GeoJSON estatico con la info de los puntos de nivel y el JSON asociado a los datos de cada una.
 - **ruta_GeoJSONpluvio**: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/04_web_hidrologia/hidrologia/results/01_estaticos/Geo_pluvio.geojson
         > Ruta en la que se crea el GeoJSON estatico con la info de los puntos de pluvio y el JSON asociado a los datos de cada una.
+- **ruta_KMLnivel**: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/04_web_hidrologia/hidrologia/results/02_operacionales/nivel.kml
+        > Ruta en la que se crea el KML operacional con la info de de nivel.
+- **ruta_KMLpluvio**: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/04_web_hidrologia/hidrologia/results/02_operacionales/pluvio.kml
+        > Ruta en la que se crea el KML operacional con la info de pluvio.
 
