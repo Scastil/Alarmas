@@ -6,16 +6,21 @@ Notas:
 - La cuenca La Lopez (sensor nivel 251) esta contenida en La Gallinaza (186), por eso se asocia a la SIRENA BARBOSA sólo la última.
 - Los items en esta tabla sin key '-al' ni codigos no tienen sirena y su informacion no se usa para tal tema.
 
-|-al|Codigo|Nombre_Sirena|Nombre_Quebrada|Est_Nivel|Est_PluvioAdentro|Est_PluvioAfuera|Est_MeteoAdentro|Est_MeteoAfuera|Est_N30m|Est_Tto|
+|-al|Codigo|Nombre_Sirena|Nombre_Quebrada|Est_Nivel|Est_Nivel1|Est_PluvioAdentro|Est_PluvioAfuera|Est_MeteoAdentro|Est_MeteoAfuera|Est_N30m|Est_Tto|
 |:-:|:----:|:-----------:|:-------------:|:-------:|:---------------:|:--------------:|:--------------:|:-------------:|:------:|:-----:|
-|-al|216|SANTA RITA SAN ANTONIO DE PRADO|Q. DONA MARIA|90,108|3,18,43||197|249|108||
-|-al|219|SIRENA BELEN - LAS VIOLETAS|Q. LA PICACHA|173|29|1,8||249|||
-|-al|220|SIRENA AGUAS FRIAS|Q. PICACHA|173|29|1,8,9||249|||
-|-al|221|SIRENA ANDALUCIA CALDAS|Q. LA CORRALA|259||33,253||105||||
-|-al|222|SIRENA BARBOSA|Q. LA GALLINAZA|251,186||234,30||82|||
-|-al|223|SIRENA BELLO|Q. LA LOCA|265||12,14,48,89|||||
-|-al|224|SIRENA LA ESTRELLA|RIO MEDELLIN - LA INMACULADA|179,106,124|267,61,261,33,253||105||179,106|179|
-|-al|226|SIRENA LA RAYA|Q. LA RAYA|246|261|61||105|||
+|-al|216|SIRENA SANTA RITA SAN ANTONIO DE PRADO|Q. DONA MARIA|90,108|108|3,18,43||197|249|108||
+|-al|219|SIRENA BELEN - LAS VIOLETAS|Q. LA PICACHA|173,116|173|29|1,8||249|||
+|-al|220|SIRENA AGUAS FRIAS|Q. PICACHA|173,116|116|29|1,8,9||249|||
+|-al|221|SIRENA ANDALUCIA CALDAS|Q. LA CORRALA|259|259||33,253||105||||
+|-al|222|SIRENA BARBOSA|Q. LA GALLINAZA|251,186|186||234,30||82|||
+|-al|223|SIRENA BELLO CAFETAL|Q. LA LOCA|265,135|135||12,14,48,89|||||
+|-al|224|SIRENA LA ESTRELLA|RIO MEDELLIN - LA INMACULADA|179,106,124|106|267,61,261,33,253||105||179,106|179|
+|-al|226|SIRENA LA RAYA|Q. LA RAYA|246|246|261|61||105|||
+|-al|279|SIRENA PIEDRAS BLANCAS|PIEDRAS BLANCAS|239|239|248|70||70|||
+|-al|285|SIRENA EL SALADO - JAMUNDI|EL SALADO|272|272||88,31|||||
+|-al|280|SIRENA LA ISLA|LA MADERA Y MONTANITA|283,134|134|281,121|89,14,48|||||
+|-al||SIRENA LA AVELINA|LA GARCIA||||37,74|||||
+|-al||EL HATO |EL HATO|155|155||37,74|||||
 |||NO SIRENA|RIO MEDELLIN - AULA AMBIENTAL|99||160,227,194,190,168,165,234,30,66,127,31,88,47,72,278,32,75,51,37,74,76,70,248,63,4,275,89,154,121,14,48,242,7,241,24,40,274,55,16,42|||||
 
 ### Set de simbologias.
