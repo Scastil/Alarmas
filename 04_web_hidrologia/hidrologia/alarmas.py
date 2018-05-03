@@ -10,13 +10,13 @@ import MySQLdb
 import csv
 import matplotlib
 import matplotlib.font_manager
-import datetime as dt
 from datetime import timedelta
 import datetime as dt
 import pickle
 import matplotlib.dates as mdates
 import netCDF4
 import textwrap
+from cpr import cpr
 from multiprocessing import Pool
 
 #Nota: las funciones operacionales se ejecutan desde otro .py donde ya se leen sus argumentos. No lee configfile. No cargan simubasin.
@@ -734,9 +734,9 @@ def Model_Update_Store(date,rutaRain,ruta_rain_hist,ruta_sto,ruta_bck_sto,DeltaT
                     else:
                         print 'Aviso: No se han remplazado los estados de: '+k
 
-#---------------------------------------------------
-#Funciones de despligue de resultados y graficacion.
-#---------------------------------------------------
+#----------------------------------------------------------------------
+#Funciones de graficacion de resultados asociados al modelo operacional
+#----------------------------------------------------------------------
 
 def Graph_AcumRain(fechaI,fechaF,cuenca,rutaRain,rutaFigura,vmin=0,vmax=100,verbose=True):
     ''' Genera grafica de acumulado de radar para un periodo especificado, lo plotea y lo guarda en .png
@@ -1539,10 +1539,10 @@ def Genera_json(rutaQhist,rutaQsim,ruta_out,verbose=True):
     for n in Nodos:
         Dict.update({str(n):{}})
         #Qsim en la pos 1.
-        Dict[str(n)].update({'Qactual': float('%.3f' % Qsim[n][0])})
+        Dict[str(n)].update({'Qactual': float('%.3f' % Qsim[n][2])})
         # Dict[str(n)].update({'Qmax_ult24h': float('%.3f' % Qhist[n][-288:].max())})
         Dict[str(n)].update({'Qmax_next1h': float('%.3f' % Qsim[n].max())})
-        fecha.update({'FechaActual':Qsim[n].index[0].strftime('%Y-%m-%d-%H:%M')})
+        fecha.update({'FechaActual':Qsim[n].index[2].strftime('%Y-%m-%d-%H:%M')})
         # fecha.update({'Fecha_max_ult24h':Qhist[n][-288:].argmax().strftime('%Y-%m-%d-%H:%M')})
         fecha.update({'Fecha_max_next1h':Qsim[n].argmax().strftime('%Y-%m-%d-%H:%M')})
     superDict.update({'Fechas':fecha})
@@ -1554,10 +1554,218 @@ def Genera_json(rutaQhist,rutaQsim,ruta_out,verbose=True):
         json.dump(superDict, outfile)
     if verbose:
         print'Aviso: Se actualiza correctamente el .json'
+        
+#----------------------------------------------
+#Funciones para el despliegue en la pagina web
+#----------------------------------------------
 
+def plotN_vs_History(dfconfig,n_pronos,rutaN,rutafigsN,rng1,timedeltaEv):
+    ests=np.unique(np.hstack(dfconfig['EstNivel']))
+    ests=ests[np.where(ests)[0]]
+    ests_n1=np.hstack(dfconfig['EstNivel1'])
+    ests_n1=ests_n1[np.where(ests_n1)[0]]
+    est_outfig=[246,272,239,173,186,251,259,283,155]
+
+    for est in np.unique(ests_n1):
+        if int(est) in est_outfig:
+            pass
+        else:
+            #Eventos.
+            Nmax=pd.read_csv(rutaN+'Nmax_'+str(est)+'.csv')
+            df=Nmax
+            df.index=pd.to_datetime(df[df.keys()[0]])
+            df.index.name=''
+            Nmax=df.drop(df.keys()[0],axis=1)
+
+            #BandasN
+            Nbandas=pd.read_csv(rutaN+'bandas_'+str(est)+'.csv')
+
+            #Consulta ultimas 3 horas.
+            self= cpr.Nivel(est)
+            start=(dt.datetime.now()-pd.Timedelta('3 hours')).strftime('%Y-%m-%d-%H:%M')
+            end=dt.datetime.now().strftime('%Y-%m-%d-%H:%M')
+            level=self.get_level(start,end)
+            level=(level['nivel'].resample('5T').mean())
+
+            #Figura Nshape
+            if int(est) in n_pronos.columns:
+                if n_pronos[int(est)].all() == 0:
+                    na=0;nb=0;nc=0
+                    ta=0;tb=0;tc=0
+                    #cosas para plotear - se plotea normal.
+                    serie_obs=level.values
+                    serie_xEst=level.size+((60/timedeltaEv)/2)
+                #si no
+                else:
+                    na=n_pronos[est]['n30p25'];nb=n_pronos[est]['n30p50'];nc=n_pronos[est]['n30p75']
+                    ta=n_pronos[est]['Ttop25'];tb=n_pronos[est]['Ttop50'];tc=n_pronos[est]['Ttop75']
+#                     nb=75
+                    #cosas para plotear
+                    #si N30m es mayor que observado
+                    if nb > level[-1]:
+                        serie_obs=level.values[(60/timedeltaEv)/2:]
+                        serie_xEst=level.size
+                    #si N30m es menor que observado
+                    elif nb <= level[-1]:
+                        stepback=level.size-level.values.argmax() 
+                        serie_obs=np.append(np.ones(stepback)*level[0],level.values)##hacer la consulta mas larguita!!!!
+                        serie_xEst=serie_n.size+(60/timedeltaEv)/2
+                    else:
+                        print 'No se define serie a plotear.'
+            #figura
+            fig=pl.figure(figsize=(12,6))
+            ax=fig.add_subplot(111)
+            ax.fill_between(np.arange(Nbandas['0.1'].size),Nbandas['0.1'],Nbandas['0.9'], color = 'c', alpha = 0.3,label='$P_{10-90}$')
+            ax.plot(Nbandas['0.5'],color='darkcyan',label='Mediana',lw=2)
+            ax.plot(serie_obs,c='k',lw=3,label='Nobs')
+            if nb==0:
+                pass
+            else:
+                pl.scatter(serie_xEst,nb,c='crimson',marker='^',s=100,label=u'Nmax30')
+            ax.set_title('Est. '+ str(est)+' - '+str(Nmax['0'].size)+' Eventos',fontsize=21)
+            ax.set_ylabel('Nivel $[cm]$', size= 19)
+            ax.set_xlabel(u'Tiempo respecto al Nmax', size= 19)
+            ax.tick_params(labelsize=14.5)
+            ax.set_xticks(np.arange(0,Nbandas.shape[0],60/timedeltaEv))
+            ax.set_xticklabels(rng1)
+            legend = ax.legend(fontsize=17,bbox_to_anchor =(0.69,-0.120),ncol=2)
+            pl.savefig(rutafigsN+'Nshape_'+str(est)+'.png',bbox_inches='tight',bbox_extra_artists=[legend])
+
+            #Figura Nhist
+            fig=pl.figure(figsize=(8,6))
+            ax=fig.add_subplot(111)
+            pl.hist(Nmax['0'],color='darkcyan')
+            pl.axvline(level[-1],c='greenyellow',lw=2,label='Nobs')
+            if nb==0:
+                pass
+            else:
+                pl.axvline(nb,c='greenyellow',lw=2,label=u'Nmax_30',ls='--')
+            ax.set_title('Est. '+ str(est)+' - '+str(Nmax['0'].size)+' Eventos',fontsize=21)
+            ax.set_ylabel('Frecuencia ', size= 19)
+            ax.set_xlabel(u'N max. $[m]$', size= 19)
+            ax.tick_params(labelsize=14.5)
+            legend = ax.legend(fontsize=17,bbox_to_anchor =(0.76,-0.170),ncol=2)
+            pl.savefig(rutafigsN+'Nhist_'+str(est)+'.png',bbox_inches='tight',bbox_extra_artists=[legend])
+            
+def plotP_vs_History(rutaP,rutafigsP,cast_normal,rng1,timedeltaEv):
+    est_tocorrect=[267,261,253,281]
+    #se leen las est a plotear
+    paths=glob.glob(rutaP+'bandas*')
+    ests_p=[i.split('/')[-1].split('_')[-1][:-4] for i in paths]
+    #for para todas
+    for est_p in np.sort(ests_p):
+        if int(est_p) in est_tocorrect:
+            pass
+        else:
+            #bandas
+            Pbandas=pd.read_csv(rutaP+'bandas_'+str(est_p)+'.csv')
+            #Pacum
+            Pacum=pd.read_csv(rutaP+'Pacum_'+str(est_p)+'.csv')
+            Pacum.index=Pacum[Pacum.keys()[0]]
+            Pacum=Pacum.drop(Pacum.keys()[0],axis=1)
+            #consulta
+            start=(dt.datetime.now()-pd.Timedelta('10 days')).strftime('%Y-%m-%d-%H:%M')
+            end=dt.datetime.now().strftime('%Y-%m-%d-%H:%M')
+            self = cpr.Pluvio(int(est_p))
+            pluvio = self.read_pluvio(start,end)
+            pluvio=(pluvio.resample('5T').mean())
+            P3h=pluvio[pd.to_datetime(end)-pd.Timedelta('3 hours'):][:-1]
+            #Pacum
+            Pacum1d=pluvio[pd.to_datetime(end)-pd.Timedelta('1 days'):][:-1].sum()
+            Pacum3d=pluvio[pd.to_datetime(end)-pd.Timedelta('3 days'):][:-1].sum()
+            Pacum10d=pluvio[pd.to_datetime(end)-pd.Timedelta('10 days'):][:-1].sum()
+            #Consulta
+            P6h=pluvio[pd.to_datetime(end)-pd.Timedelta('6 hours'):][:-1]
+            pos0=P6h.index.get_loc(P3h.index[0])
+            P3h=P6h[pd.to_datetime(end)-pd.Timedelta('3 hours'):]
+            P=P3h.append(cast_normal[str(est_p)])
+
+            #que plotear
+            #cast cero, no esta lloviendo
+            if cast_normal[str(est_p)].all() == 0:
+    #                 print 'aqui'
+                Yo=P.cumsum()[:-(60/timedeltaEv)-1]
+                Xo=np.arange(0,Yo.size)
+                Yc=P.cumsum()[-(60/timedeltaEv)-1:]
+                Xc=np.arange(P3h.size,P.size)
+            else:
+    #                 print 'aqui1'
+                #pongo cast en la mitad, recortando la serie.
+                if P.sum() > P3h.sum():
+    #                     print 'aqui2'
+                    Yo=P3h.cumsum()[(60/timedeltaEv)+1:]
+                    Xo=np.arange(0,Yo.size)
+                    Yc=P.cumsum()[-(60/timedeltaEv)-1:]
+                    Xc=np.arange(Yo.size,Yo.size+Yc.size)
+                #pongo maximo en la mitad, alargando la serie hacia atras.
+                elif P.sum() <= P3h.sum():
+    #                     print 'aqui3'
+                    stepback=60/timedeltaEv#P3h.size-P3h.values.argmax()
+                    Yo=P6h[pos0-stepback:].cumsum()
+                    Xo=np.arange(0,Yo.size)
+                    Yc=P.cumsum()[-(60/timedeltaEv):]
+                    Xc=np.arange(Yo.size,Yo.size+Yc.size)
+                else:
+                    print 'no hay series para graficar'
+            #FIGURE
+            fig=pl.figure(figsize=(12,6))
+            ax=fig.add_subplot(111)
+            ax.fill_between(np.arange(Pbandas['0.1'].size),Pbandas['0.1'],Pbandas['0.9'],color='c',alpha=0.3,label='$P_{10-90}$')
+            ax.plot(Pbandas['0.5'],color='darkcyan',label='Mediana',lw=3)
+            ax.plot(Xo,Yo.values,c='k',lw=2.5,label='Pacum_3h')
+            ax.plot(Xc,Yc.values,c='k',lw=2.5,ls='--',label='Pacum_cast')
+            ax.set_ylabel(u'Evolucion $P_{acum}$ historica $[mm]$', size= 19)
+            ax.set_xlabel(u'Tiempo respecto al Nmax', size= 18)
+            ax.set_title('Est. '+ str(est_p)+' - '+str(np.array(Pacum[Pacum.index=='Pacum3h'])[0].size)+' Eventos',fontsize=21)
+            ax.tick_params(labelsize=14.5)
+            ax.set_xticks(np.arange(0,Pbandas.shape[0],60/timedeltaEv))
+            ax.set_xticklabels(rng1)
+            # ax.set_ylim(0,int(Pbandas['0.9'].max()+1))
+            # ax.legend(fontsize=17,loc=(0.045,-0.225),ncol=3)
+            # pl.savefig(rutafigsP+'Pshape_'+str(est)+'.png')
+            legend = ax.legend(fontsize=15,bbox_to_anchor =(1.5/2,-0.150),ncol=2)
+            pl.savefig(rutafigsP+'Pshape_'+str(est_p)+'.png',bbox_inches='tight',bbox_extra_artists=[legend])
+            #Pacum3h
+            fig=pl.figure(figsize=(7,5))
+            ax=fig.add_subplot(111)
+            pl.hist(np.array(Pacum[Pacum.index=='Pacum3h'])[0],color='darkcyan')
+            pl.axvline(P3h.sum(),c='greenyellow',lw=2,label=u'$P_{acumUlt3h}$')
+            pl.axvline(P.sum(),c='greenyellow',lw=2,label=u'$P_{acumcast}$',ls='--')
+            ax.set_ylabel('Frecuencia ', size= 17)
+            ax.set_xlabel(u'$P_{acum3h}$ Eventos $[mm]$', size= 16)
+            ax.set_title('Est. '+ str(est_p)+' - '+str(np.array(Pacum[Pacum.index=='Pacum3h'])[0].size)+' Eventos',fontsize=17)
+            ax.tick_params(labelsize=13.5)
+            ax.legend(fontsize=14)
+            pl.savefig(rutafigsP+'Phist3h_'+str(est_p)+'.png')
+            #Pacum1d
+            fig=pl.figure(figsize=(7,5))
+            ax=fig.add_subplot(111)
+            pl.hist(np.array(Pacum[Pacum.index=='Pacum1'])[0],color='darkcyan')
+            pl.axvline(Pacum1d,c='greenyellow',lw=2,label=u'$P_{acumUlt1d}$')
+            ax.set_ylabel('Frecuencia ', size= 17)
+            ax.set_xlabel(u'$P_{acum1d}$ Eventos $[mm]$', size= 16)
+            ax.set_title('Est. '+ str(est_p)+' - '+str(np.array(Pacum[Pacum.index=='Pacum3h'])[0].size)+' Eventos',fontsize=17)
+            ax.tick_params(labelsize=13.5)
+            ax.legend(fontsize=14)
+            pl.savefig(rutafigsP+'pruebas/Phist1d_'+str(est_p)+'.png')
+            #Pacum3d
+            fig=pl.figure(figsize=(7,5))
+            ax=fig.add_subplot(111)
+            pl.hist(np.array(Pacum[Pacum.index=='Pacum3'])[0],color='darkcyan')
+            pl.axvline(Pacum3d,c='greenyellow',lw=2,label=u'$P_{acumUlt3d}$')
+            #pl.axvline(P.sum(),c='greenyellow',lw=2,label=u'$P_{acumcast}$',ls='--')
+            ax.set_ylabel('Frecuencia ', size= 17)
+            ax.set_xlabel(u'$P_{acum3d}$ Eventos $[mm]$', size= 16)
+            ax.set_title('Est. '+ str(est_p)+' - '+str(np.array(Pacum[Pacum.index=='Pacum3h'])[0].size)+' Eventos',fontsize=17)
+            ax.tick_params(labelsize=13.5)
+            ax.legend(fontsize=14)
+            pl.savefig(rutafigsP+'pruebas/Phist3d_'+str(est_p)+'.png')
+            
 #-----------------------------------------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------------------------------------------------
-#Funciones no operacionales
+#############################################################################################################################
+#FUNCIONES NO OPERACIONALES
+#############################################################################################################################
 #-----------------------------------------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------------------------------------------------
 
@@ -1706,9 +1914,9 @@ def model_write_Stohist(ruta_Ssim,ruta_Shist):
     Shist.to_json(ruta_Shist)
     print 'Aviso: Se ha actualizado el archivo de Ssim_historicos de: '+ruta_Shist   
     
-#------------------------    
-#Funciones de graficacion
-#------------------------
+#--------------------------------------------------------
+#Funciones de graficacion asociadas al modelo operacional
+#--------------------------------------------------------
 
 def Genera_riskvectorMap(rutaConfig,cuenca,figSZ):  
     ''' #Genera un mapa en .png con el risk_vector, esta funcion no es de uso operacional.
