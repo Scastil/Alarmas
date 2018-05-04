@@ -30,10 +30,10 @@ listconfig = al.get_rutesList(ruta_config)
 #Lectura de rutas
 ruta_estadistico=al.get_ruta(listconfig,'ruta_estadistico')
 ruta_pluvioforecast=al.get_ruta(listconfig,'ruta_pluvioforecast')
-rutaN_infoeventos=al.get_ruta(listconfig,'rutaN_infoeventos')
-rutaP_infoeventos=al.get_ruta(listconfig,'rutaP_infoeventos')
-rutaFigsNbandas=al.get_ruta(listconfig,'rutaFigsNbandas')
-rutaFigsPbandas=al.get_ruta(listconfig,'rutaFigsPbandas')
+rutaN=al.get_ruta(listconfig,'rutaN_infoeventos')
+rutaP=al.get_ruta(listconfig,'rutaP_infoeventos')
+rutafigsN=al.get_ruta(listconfig,'rutaFigsNbandas')
+rutafigsP=al.get_ruta(listconfig,'rutaFigsPbandas')
 #Lectura del assignfile
 dfconfig=pd.read_json(al.get_ruta(listconfig,'ruta_JSONinfosirenas'))
 
@@ -41,7 +41,7 @@ dfconfig=pd.read_json(al.get_ruta(listconfig,'ruta_JSONinfosirenas'))
 #Lectura de resultados de modelos 
 #--------------------------------
 
-#Estadistico N
+#Estadistico
 # se lee la info del pronostico Estadistico 30m
 f=open(ruta_estadistico)
 n_pronos1=pickle.load(f)
@@ -77,7 +77,37 @@ for i in range(hours.size):
         rng1.append('0'+str(np.abs(hours[i]))+':00')
 rng1=np.array(rng1)
 
-#nivel
-al.plotN_vs_History(dfconfig,n_pronos,rutaN_infoeventos,rutaFigsNbandas,rng1,timedeltaEv)
-#pluvio
-al.plotP_vs_History(rutaP_infoeventos,rutaFigsPbandas,cast_normal,rng1,timedeltaEv)
+#NIVEL
+
+#estaciones.
+ests=np.unique(np.hstack(dfconfig['EstNivel']))
+ests=ests[np.where(ests)[0]]
+# ests_n1=np.hstack(dfconfig['EstNivel1'])
+# ests_n1=ests_n1[np.where(ests_n1)[0]]
+est_outfig=[246,272,239,173,186,251,259,283,155]
+
+#fechas de consulta nivel.
+start=(dt.datetime.now()-pd.Timedelta('3 hours')).strftime('%Y-%m-%d-%H:%M')
+end=dt.datetime.now().strftime('%Y-%m-%d-%H:%M')
+
+for est in np.unique(ests):
+    if int(est) in est_outfig:
+        pass
+    else:
+        al.plotN_vs_History(int(est),start,end,dfconfig,n_pronos,rutaN,rutafigsN,rng1,timedeltaEv)
+        
+#PLUVIO
+
+est_noH=[267,281,43 ,261,253]
+#se leen las est a plotear
+paths_p=glob.glob(rutaP+'bandas*')
+ests_p=[i.split('/')[-1].split('_')[-1][:-4] for i in paths_p]
+#fechas para consultar pluvio.
+start=(dt.datetime.now()-pd.Timedelta('3 days')).strftime('%Y-%m-%d-%H:%M')
+end=dt.datetime.now().strftime('%Y-%m-%d-%H:%M')
+# for para todas
+for est_p in np.sort(ests_p):
+    if int(est_p) in est_noH:
+        pass
+    else:
+        al.plotP_vs_History(est_p,start,end,rutaP,rutafigsP,cast_normal,rng1,timedeltaEv)

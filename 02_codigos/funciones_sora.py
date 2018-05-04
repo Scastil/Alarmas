@@ -18,6 +18,55 @@ import matplotlib.dates as mdates
 import netCDF4
 import textwrap
 
+# ------------------------
+# Consultas generales a BD
+#-------------------------
+
+def getInfoestIndatos(est_codes):
+    '''Consulta datos de las estaciones a la tabla estaciones del servidor del SIATA.'''
+    codeest=est_codes[0]
+    # coneccion a bd con usuario operacional
+    host   = host
+    user   = user
+    passwd = passwd
+    bd     = bd
+    #Consulta a tabla estaciones
+    Estaciones="SELECT codigo,longitude,latitude,nombreestacion,fechainstalacion  FROM estaciones WHERE codigo=("+str(codeest)+")"
+    dbconn = MySQLdb.connect(host, user,passwd,bd)
+    db_cursor = dbconn.cursor()
+    db_cursor.execute(Estaciones)
+    result = np.array(db_cursor.fetchall())
+    estaciones_datos_all=pd.DataFrame(result,columns=['codigo','longitud','latitud','nombreestacion','fechainstalacion'])
+
+
+    for ind,est in enumerate(est_codes[1:]):
+        try:
+            # codigo de la estacion.
+            codeest=est
+            # coneccion a bd con usuario operacional
+            host   = host
+            user   = user
+            passwd = passwd
+            bd     = bd
+            #Consulta a tabla estaciones
+            Estaciones="SELECT codigo,longitude,latitude,nombreestacion,fechainstalacion  FROM estaciones WHERE codigo=("+str(codeest)+")"
+            dbconn = MySQLdb.connect(host, user,passwd,bd)
+            db_cursor = dbconn.cursor()
+            db_cursor.execute(Estaciones)
+            result = np.array(db_cursor.fetchall())
+            #holding
+            estaciones_datos=pd.DataFrame(result,columns=['codigo','longitud','latitud','nombreestacion','fechainstalacion'])
+            estaciones_datos_all=estaciones_datos_all.append(estaciones_datos)
+        except:
+            pass
+    estaciones_datos_all.index=estaciones_datos_all['codigo']
+    estaciones_datos_all.index.name=''
+    estaciones_datos_all=estaciones_datos_all.drop('codigo',axis=1)
+    return estaciones_datos_all
+
+#-----------------
+# Manejo de series
+#-----------------
 def FindMax(Q,fechas,umbral,horasAtras=12,BusquedaAdelante=36):
     '''Nota: Q debe ser un masked_array'''
     pos=np.where(Q>umbral)[0]
