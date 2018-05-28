@@ -1,0 +1,8 @@
+lun may 28 16:25:01 COT 2018
+/media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones
+/media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones/plotHistory.sh: 39: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones/plotHistory.sh: function: not found
+2018-05-28 16:25:data_base_query:1.7 sec
+No se registra precipitacion en pluvios_forecast
+108
+2018-05-28 16:25:plots_vs_History:2.7 sec
+/media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones/plotHistory.sh: 43: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones/plotHistory.sh: Syntax error: "}" unexpected

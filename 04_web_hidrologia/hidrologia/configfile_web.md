@@ -36,6 +36,8 @@ Notas:
         > Ruta en la que se alojan los KML's de las cuencas de las alarmas.
 - **ruta_nivel**: /media/nicolas/maso/Mario/30daysLevel/
         > Ruta en la que se alojan los .csv de consultad de nivel del ultimos mes.
+- **ruta_consultaN3h**: /media/nicolas/maso/Mario/tres_horas.csv
+        > Ruta en la que se alojan el .csv con las consulta croneada de las ultimas 3h de todas las estaciones de nivel
 - **ruta_estadistico**: /media/nicolas/Home/Jupyter/Esneider/modelo_crecidas/pronostico_niveles.bin
         > Ruta en la que se alojan los resultados del modelo estadistico de crecidas y transito.
 - **ruta_allrisklevels**: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/04_web_hidrologia/hidrologia/op/datos_base/risklevels_all_op.csv
