@@ -1690,8 +1690,8 @@ def plotP_vs_History(est_p,start,end,rutaP,rutafigsP,cast_normal,rng1,timedeltaE
     self = cpr.Pluvio(int(est_p))
     pluvio = self.read_pluvio(start,end)
     #si la media de los ultimos 5 minutos o el dato -2 es nan.. no hay datos- : no hago nada.
-    if np.isnan(pluvio[-5:].mean()) or np.isnan(pluvio[-2]):
-        print 'Est '+str(est_p)+': No hay datos en los ultimos 5 min.'
+    if (np.isnan(pluvio[-5:].mean()) or np.isnan(pluvio[-2])) or (pluvio[-5:].mean()==0):
+        print 'Est '+str(est_p)+': No hay datos en los ultimos 5 min... o son cero.'
         pass
     else:
         pluvio=(pluvio.resample('5T').mean())

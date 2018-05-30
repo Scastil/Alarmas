@@ -28,7 +28,7 @@ def logger(orig_func):
     import logging
     from functools import wraps
     import time
-    logging.basicConfig(filename = 'reporte_nivel.log',level=logging.INFO)
+    logging.basicConfig(filename = 'plotHistory.log',level=logging.INFO)
     @wraps(orig_func)
     def wrapper(*args,**kwargs):
         start = time.time()
@@ -202,24 +202,24 @@ def plots_vs_History():
     rng1=np.array(rng1)
     
     #PLUVIO
-    if all(cast_normal.max()) == 0:
-        print 'No se registra precipitacion en pluvios_forecast'
-        pass
-    else: #si esta lloviendo
-        est_noH=[267,281,43 ,261,253]
-        #se leen las est a plotear
-        paths_p=glob.glob(rutaP+'bandas*')
-        ests_p=[i.split('/')[-1].split('_')[-1][:-4] for i in paths_p]
-        #fechas para consultar pluvio.
-        start=(datetime.datetime.now()-pd.Timedelta('3 days')).strftime('%Y-%m-%d-%H:%M')
-        end=datetime.datetime.now().strftime('%Y-%m-%d-%H:%M')
-        # for para todas
-        for est_p in np.sort(ests_p):
-            if int(est_p) in est_noH:
-                pass
-            else:
-                print est_p
-                al.plotP_vs_History(est_p,start,end,rutaP,rutafigsP,cast_normal,rng1,timedeltaEv)
+    # if all(cast_normal.max()) == 0:
+    #     print 'No se registra precipitacion en pluvios_forecast'
+    #     pass
+    # else: #si esta lloviendo
+    est_noH=[267,281,43 ,261,253]
+    #se leen las est a plotear
+    paths_p=glob.glob(rutaP+'bandas*')
+    ests_p=[i.split('/')[-1].split('_')[-1][:-4] for i in paths_p]
+    #fechas para consultar pluvio.
+    start=(datetime.datetime.now()-pd.Timedelta('3 days')).strftime('%Y-%m-%d-%H:%M')
+    end=datetime.datetime.now().strftime('%Y-%m-%d-%H:%M')
+    # for para todas
+    for est_p in np.sort(ests_p):
+        if int(est_p) in est_noH:
+            pass
+        else:
+            print est_p
+            al.plotP_vs_History(est_p,start,end,rutaP,rutafigsP,cast_normal,rng1,timedeltaEv)
     #NIVEL
     # Estaciones en las que se puede ejecutar
     ests=np.unique(np.hstack(dfconfig['EstNivel']))

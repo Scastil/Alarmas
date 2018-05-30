@@ -1,8 +1,39 @@
-lun may 28 16:25:01 COT 2018
+mar may 29 21:20:01 COT 2018
 /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones
-/media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones/plotHistory.sh: 39: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones/plotHistory.sh: function: not found
-2018-05-28 16:25:data_base_query:1.7 sec
-No se registra precipitacion en pluvios_forecast
+2018-05-29 21:20:data_base_query:2.2 sec
+1
+Est 1: No hay datos en los ultimos 5 min... o son cero.
+12
+Est 12: No hay datos en los ultimos 5 min... o son cero.
+121
+Est 121: No hay datos en los ultimos 5 min... o son cero.
+14
+Est 14: No hay datos en los ultimos 5 min... o son cero.
+18
+Est 18: No hay datos en los ultimos 5 min... o son cero.
+29
+Est 29: No hay datos en los ultimos 5 min... o son cero.
+3
+Est 3: No hay datos en los ultimos 5 min... o son cero.
+33
+37
+Est 37: No hay datos en los ultimos 5 min... o son cero.
+48
+Est 48: No hay datos en los ultimos 5 min... o son cero.
+61
+Est 61: No hay datos en los ultimos 5 min... o son cero.
+74
+Est 74: No hay datos en los ultimos 5 min... o son cero.
+8
+Est 8: No hay datos en los ultimos 5 min... o son cero.
+89
+Est 89: No hay datos en los ultimos 5 min... o son cero.
+9
+Est 9: No hay datos en los ultimos 5 min... o son cero.
+124
+Est 124: No hay datos en los ultimos 5 min.
 108
-2018-05-28 16:25:plots_vs_History:2.7 sec
-/media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones/plotHistory.sh: 43: /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones/plotHistory.sh: Syntax error: "}" unexpected
+Est 108: No hay datos en los ultimos 5 min.
+106
+2018-05-29 21:20:plots_vs_History:10.5 sec
+/media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones/plotHistory.lck
