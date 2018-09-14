@@ -1,39 +1,24 @@
-mar may 29 21:20:01 COT 2018
+vie sep 14 09:20:01 -05 2018
 /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones
-2018-05-29 21:20:data_base_query:2.2 sec
-1
+2018-09-14 09:20:data_base_query:3.9 sec
 Est 1: No hay datos en los ultimos 5 min... o son cero.
-12
 Est 12: No hay datos en los ultimos 5 min... o son cero.
-121
 Est 121: No hay datos en los ultimos 5 min... o son cero.
-14
 Est 14: No hay datos en los ultimos 5 min... o son cero.
-18
 Est 18: No hay datos en los ultimos 5 min... o son cero.
-29
+Ninguna estacion de nivel supera el N1.
+Ninguna estacion de nivel supera el N1.
+Ninguna estacion de nivel supera el N1.
+Ninguna estacion de nivel supera el N1.
 Est 29: No hay datos en los ultimos 5 min... o son cero.
-3
 Est 3: No hay datos en los ultimos 5 min... o son cero.
-33
-37
+Est 33: No hay datos en los ultimos 5 min... o son cero.
 Est 37: No hay datos en los ultimos 5 min... o son cero.
-48
+Ninguna estacion de nivel supera el N1.
 Est 48: No hay datos en los ultimos 5 min... o son cero.
-61
 Est 61: No hay datos en los ultimos 5 min... o son cero.
-74
 Est 74: No hay datos en los ultimos 5 min... o son cero.
-8
 Est 8: No hay datos en los ultimos 5 min... o son cero.
-89
 Est 89: No hay datos en los ultimos 5 min... o son cero.
-9
 Est 9: No hay datos en los ultimos 5 min... o son cero.
-124
-Est 124: No hay datos en los ultimos 5 min.
-108
-Est 108: No hay datos en los ultimos 5 min.
-106
-2018-05-29 21:20:plots_vs_History:10.5 sec
-/media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones/plotHistory.lck
+2018-09-14 09:20:plots_vs_History:5.3 sec

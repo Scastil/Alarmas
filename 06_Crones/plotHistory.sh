@@ -16,7 +16,7 @@ python /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones/plotHistory.py
 
 
 (
-        if flock -n 201; then
+        if flock -n 301; then
                 cd $appdir
                 plotHistory
                 echo $appdir $lockfile
@@ -24,6 +24,6 @@ python /media/nicolas/Home/Jupyter/Soraya/git/Alarmas/06_Crones/plotHistory.py
         else
             	echo "`date` [$pid] - Script is already executing. Exiting now." >> $logfile
         fi
-) 201>$lockfile
+) 301>$lockfile
 
 exit 0

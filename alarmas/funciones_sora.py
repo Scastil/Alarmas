@@ -131,3 +131,27 @@ def hietogram_frombins(Gs_eventos,tipo,years,nameruta):
         #se guarda la serie
         hietogram_0[ind]=serie
     return hietogram_0
+
+def Find_IniEv(serie,percentile):
+    ''' Devuelve la posicion del inicio de la primera creciente. La entrada debe solo contener un evento.
+    '''
+    return np.where(np.diff(serie)>=np.percentile(np.diff(serie),percentile))[0][0]
+
+def get_rutesDF(paths,keysI,keysF,columns,indexes):
+    ''' It returns a df with rutes of interest.
+        - Arguments 1, 2, 3 and 4 shall have same size of paths to revew.
+        - 4 shall have same size of pathsinside, those inside have to be same size too.
+        '''
+        
+    import os
+    listas=[]
+    for index,path in enumerate(paths):
+        lista=[]
+        for pathinside in list(np.sort(os.listdir(path))):
+                if pathinside.startswith(keysI[index]) and pathinside.endswith(keysF[index]):
+                    lista.append((path+pathinside))
+        listas.append(lista)
+    df=pd.DataFrame(listas).T
+    df.columns=columns
+    df.index=indexes
+    return df

@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-#  Copyright 2018 MCANO <mario.cano@siata.gov.co>
+
 import cprv1.cprv1 as cpr
+
 import matplotlib.pyplot as plt
 import datetime
 import pandas as pd
@@ -14,6 +15,10 @@ import wmf.wmf as wmf
 import pickle
 import alarmas as al
 import glob
+import json
+import datetime as dt
+import cprsora.humedad as hm
+from cpr import cpr as cpr_1
 
 def logger(orig_func):
     '''logging decorator, alters function passed as argument and creates
@@ -216,9 +221,9 @@ def plots_vs_History():
     # for para todas
     for est_p in np.sort(ests_p):
         if int(est_p) in est_noH:
+            print 'Ninguna estacion de nivel supera el N1.'
             pass
         else:
-            print est_p
             al.plotP_vs_History(est_p,start,end,rutaP,rutafigsP,cast_normal,rng1,timedeltaEv)
     #NIVEL
     # Estaciones en las que se puede ejecutar
@@ -231,6 +236,29 @@ def plots_vs_History():
             print est
             al.plotN_vs_History(int(est),ruta_consultaN3h,dfconfig,n_pronos,rutaN,rutafigsN,rng1,timedeltaEv)
 
+@logger
+def plot_HNetwork(nivel):
+#     nivel=cprv1.Nivel(user='sora',passwd='12345',codigo=99)
+    queryH=nivel.read_sql('select codigo from estaciones_estaciones where clase="H"')
+    codes=np.array(queryH['codigo'])
+    rutacredentials_remote='/media/nicolas/Home/Jupyter/Soraya/git/nontrackablefiles/remotecredentials.json'
+    rutacredentials_local='/media/nicolas/Home/Jupyter/Soraya/git/nontrackablefiles/localcredentials.json'
+
+    with open(rutacredentials_local) as json_file:  
+        localcredentials = json.load(json_file)
+    ruta_figs='/media/nicolas/Home/Jupyter/Soraya/Op_Alarmas/Result_to_web/figs_operacionales/'
+    for code in codes:
+        self= hm.Humedad(codigo=code, **localcredentials)
+        end = dt.datetime.now()
+        starts  = [(end - dt.timedelta(hours=3)), (end - dt.timedelta(hours=24)),
+                   (end - dt.timedelta(hours=72)),(end - dt.timedelta(days=30)) ]
+        for start in starts:
+            #consulta pluvio
+            pluvio = cpr_1.Pluvio(int(self.info.get('pluvios')))
+            pluvio_s = pluvio.read_pluvio(start,end)
+            self.plot_Humedad2Webpage(start,end,pluvio_s,ruta_figs,rutacredentials_remote,rutacredentials_local)
+    print 'Se ejecutan las graficas operacionales de la red de humedad'
+            
 #PROCESS
 self = cpr.Nivel(codigo = 99,user='sample_user',passwd='s@mple_p@ss',SimuBasin=False)
 df = data_base_query() #dataframe level
@@ -242,6 +270,7 @@ if in_risk.size > 0:
     if __name__ == '__main__':
         p = multiprocessing.Process(target=plots_vs_History, name="r")
         p.start()
-        time.sleep(100) # wait near 5 minutes to kill process
+        time.sleep(250) # wait near 5 minutes to kill process
         p.terminate()
         p.join()
+
